@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "study": "step6_baseline_validation",
+  "study_date": "2026-11-12",
+  "algorithm": {
+    "partitions": 12,
+    "neighbors": 10,
+    "evaluations": 1000,
+    "crossover": 0.8,
+    "mutation": 0.05
+  },
+  "seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  "repeat_seed": 0,
+  "checkpoints": [91, 250, 500, 1000],
+  "hv_reference": [1.1, 1.1, 1.1],
+  "instances": [
+    {
+      "id": "fattahi1",
+      "family": "Fattahi",
+      "path": "instance/FattahiMehrabadJolai2007/fattahi1.txt",
+      "known_front": [[66, 127, 66], [91, 115, 91]]
+    },
+    {
+      "id": "kacem1",
+      "family": "Kacem",
+      "path": "instance/KacemHammadiBorne2002/kacem1.txt"
+    },
+    {
+      "id": "mk01",
+      "family": "Brandimarte",
+      "path": "instance/Brandimarte1993/mk01.txt"
+    },
+    {
+      "id": "behnke1",
+      "family": "Behnke-Geiger",
+      "path": "instance/BehnkeGeiger2012/behnke1.txt"
+    },
+    {
+      "id": "dpp01a",
+      "family": "Dauzere-Peres-Paulli",
+      "path": "instance/DauzerePeresPaulli1994/01a.txt"
+    },
+    {
+      "id": "mt10c1",
+      "family": "Chambers-Barnes",
+      "path": "instance/ChambersBarnes1996/mt10c1.txt"
+    },
+    {
+      "id": "hurink_sdata_ft06",
+      "family": "Hurink",
+      "path": "instance/HurinkJurischThole1994/sdata/ft06.txt"
+    },
+    {
+      "id": "hurink_rdata_ft06",
+      "family": "Hurink",
+      "path": "instance/HurinkJurischThole1994/rdata/ft06.txt"
+    },
+    {
+      "id": "hurink_sdata_orb7",
+      "family": "Hurink",
+      "path": "instance/HurinkJurischThole1994/sdata/orb7.txt"
+    }
+  ]
+}
