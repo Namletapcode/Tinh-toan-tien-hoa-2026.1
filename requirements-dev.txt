@@ -1,0 +1,11 @@
+# Python 3.11. Install the vendored framework separately in editable mode.
+# Keep the verified step-2 environment fixed while validating the core fixes.
+numpy==1.23.5
+pytest==8.3.5
+# Used by the Aihong-Sun reference code; use the Agg backend for checks.
+matplotlib==3.9.4
+# Newer contourpy versions require a newer NumPy than this upstream baseline.
+contourpy==1.2.1
+# Build tools for the upstream setup.py and editable installation.
+setuptools==78.1.1
+wheel==0.45.1

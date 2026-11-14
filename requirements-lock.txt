@@ -1,0 +1,20 @@
+# Environment verified for steps 2-3 on Windows x64 / Python 3.11.9.
+# Editable project install is a separate command; no machine-specific paths here.
+colorama==0.4.6
+contourpy==1.2.1
+cycler==0.12.1
+fonttools==4.68.0
+iniconfig==2.3.1
+kiwisolver==1.5.1
+matplotlib==3.9.4
+numpy==1.23.5
+packaging==26.3
+pillow==13.0.0
+pip==25.3
+pluggy==1.7.0
+pyparsing==3.3.3
+pytest==8.3.5
+python-dateutil==4.0.0
+setuptools==78.1.1
+tzdata==2026.6
+wheel==0.45.1

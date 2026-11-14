@@ -1,0 +1,28 @@
+# Local Python environment and generated files
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+coverage.xml
+build/
+dist/
+
+# Editor and OS files, merged from the upstream vendor ignore rules.
+.DS_Store
+.idea/
+
+# Generated RMNK results from the upstream examples.
+/vendor/moead_framework/data/my_results
+
+# Pinned upstream clones are documented in docs/SOURCES.md.
+# The working framework snapshot in vendor/ IS tracked by this project.
+/references/
+
+# Files written into the current directory by unchanged upstream tests.
+/test_save_population.txt
+/test_save_population_full.txt
+
+# Generated experiment artifacts (docs/archive/setup remains tracked).
+/results/
