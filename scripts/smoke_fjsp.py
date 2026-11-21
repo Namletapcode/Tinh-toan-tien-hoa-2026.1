@@ -21,8 +21,7 @@ def integer_list(value):
 def main():
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--instance", type=Path,
-                        default=root / "instance/FattahiMehrabadJolai2007/fattahi1.txt")
+    parser.add_argument("--instance", type=Path, default=root / "instance/main/Brandimate1993/Loose/Mk01/Mk01.fjs")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--os", type=integer_list, help="Zero-based job IDs, comma-separated")
     parser.add_argument("--ms", type=integer_list, help="Zero-based local choice indices, comma-separated")
@@ -42,7 +41,8 @@ def main():
         "jobs": instance.job_count,
         "machines": instance.machine_count,
         "operations": instance.operation_count,
-        "objectives": dict(zip(("makespan", "total_workload", "max_machine_workload"), schedule.objectives)),
+        "objectives": dict(zip(("makespan", "twt"), schedule.objectives)),
+        "completion_times": schedule.completion_times,
         "machine_loads": schedule.machine_loads,
         "feasible": True,
     }

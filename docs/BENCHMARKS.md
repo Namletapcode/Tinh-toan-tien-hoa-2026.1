@@ -1,112 +1,91 @@
-# Dữ liệu FJSP và mốc benchmark makespan
+# Dữ liệu FJSP
 
-[README](../README.md) · [Mô hình FJSP](FJSP.md) · [Thực nghiệm](EXPERIMENTS.md)
+## 1. Bộ dữ liệu chính
 
-Tài liệu tra cứu định dạng input, các họ instance và bảng LB/BKS.
-Mô hình ba mục tiêu, OS/MS và decoder nằm ở [FJSP](FJSP.md).
+### 1.1. Cấu trúc thư mục
 
-**LB/BKS ở đây chỉ tham chiếu makespan, không phải front chuẩn cho ba mục tiêu.**
-Nguồn là [FJSPLIB](https://scheduleopt.github.io/benchmarks/fjsplib#best-known-solutions-per-instance-family);
-[mô hình tham chiếu được chốt](https://github.com/ScheduleOpt/benchmarks/blob/8a6e36ef31263d36975e56fb481e0ba04e188d6f/flexible-jobshop/code/optalcp/flexiblejobshop.mjs#L42-L47)
-tối thiểu hóa thời điểm hoàn thành tất cả job. Các bảng dưới đây giữ snapshot
-nguồn và phạm vi instance nêu trong tài liệu, không tự cập nhật theo nguồn trực tuyến.
+Thư mục `instance/main` chứa 84 bài toán lập lịch phân xưởng linh hoạt có xét đến thời gian hạn chót và trọng số phạt trễ. Dữ liệu được chia theo 2 họ bài toán:
 
-## 1. Cấu trúc input
+- **`Brandimate1993`**: Gồm 10 bài toán từ `Mk01` đến `Mk10`.
+- **`DauzerePeresPaulli1994`**: Gồm 18 bài toán từ `01a` đến `18a`.
 
-Mỗi file `.txt` trong thư mục [`instance/`](../instance/) mô tả một bài toán độc lập và có dạng:
+Mỗi họ bài toán được tổ chức thành 3 nhóm theo mức độ ngặt nghèo của hạn chót (Due-date tightness):
+
+- **`Loose`**: Hạn chót nới lỏng (thời gian hoàn thành cho phép dài).
+- **`Moderate`**: Hạn chót trung bình.
+- **`Tight`**: Hạn chót ngặt nghèo (thời gian hoàn thành cho phép ngắn).
+
+Trong mỗi thư mục mức độ bao gồm:
+
+- **`BestResults.csv`**: Bảng ghi nhận kết quả tốt nhất đã biết (BKS) tính theo hàm mục tiêu Total Weighted Tardiness - TWT cùng tên thuật toán tương ứng dùng để tìm ra kết quả đó:
+  - `LS`: Local Search.
+  - `VNSG`: Variable Neighborhood Search.
+  - `SBH-VNS`: Shifting Bottleneck Heuristic kết hợp Variable Neighborhood Search.
+
+### 1.2. Cấu trúc một instance
+
+Mỗi instance mô tả cấu trúc các công đoạn, máy gia công khả dĩ và thông số thời gian hạn chót của từng job.
+
+#### Header
+
+Dòng đầu tiên gồm 2 số nguyên:
+
+- `n_jobs`: Số lượng job của bài toán.
+- `n_machines`: Tổng số máy có trong phân xưởng.
+
+#### Các dòng mô tả job
+
+`n_jobs` dòng tiếp theo lần lượt biểu diễn thông tin từng job:
 
 ```text
-n_jobs n_machines metadata
+n_ops  k_1 m_11 p_11  ...  k_n m_n1 p_n1 ...  r_j  d_j  w_j
+```
+
+Trong đó:
+
+1. **`n_ops`**: Số lượng nguyên công cần thực hiện của job theo đúng trình tự xuất hiện.
+2. **Dữ liệu từng công đoạn**:
+   - `k_i`: Số lượng máy thay thế có thể thực hiện công đoạn thứ $i$ của job.
+   - `k_i` cặp số `(m, p)` đi liền sau `k_i`:
+     - `m`: Mã số máy có thể làm công đoạn thứ $i$ được sắp xếp tăng dần theo mã máy.
+     - `p`: Thời gian gia công tương ứng trên máy `m`.
+
+   **Ví dụ minh họa từ dòng 2 của file `Mk01.fjs`**:
+
+   ```text
+   6  2 1 5 3 4  3 2 1 3 5 5 3  ...  0 23 2
+   ```
+
+   - `6`: Job có 6 công đoạn.
+   - Công đoạn 1 (`2 1 5 3 4`): $k_1 = 2$ (có 2 máy làm được), gồm máy 1 thời gian 5 và máy 3 thời gian 4.
+   - Công đoạn 2 (`3 2 1 3 5 5 3`): $k_2 = 3$ (có 3 máy làm được), gồm máy 2 thời gian 1, máy 3 thời gian 5, máy 5 thời gian 3.
+   - Tương tự cho các công đoạn tiếp theo.
+3. **Tham số hạn chót**:
+   - `r_j`: Release date. Toàn bộ các bài toán trong bộ dữ liệu đều có $r_j = 0$.
+   - `d_j`: Due date. Gồm 3 mức `Loose`, `Moderate`, `Tight`
+    
+   - `w_j`: Trọng số ưu tiên. Giá trị trọng số này giữ nguyên giữa cả 3 mức `Tight`, `Moderate` và `Loose` cho cùng một job.
+
+---
+
+## 2. Bộ phụ dữ liệu phụ
+
+Thư mục [`instance/other/`](../instance/other/) chứa các bộ FJSP **không** gắn
+Loose/Moderate/Tight trong layout hiện tại; phần lớn là file `.txt` kiểu FJSP không có `r_j d_j w_j` ở cuối dòng. 
+
+### 2.1. Cấu trúc input
+
+```text
+n_jobs n_machines [metadata]
 n_ops_job1 k_11 machine_id processing_time ... k_12 machine_id processing_time ...
-n_ops_job2 k_21 machine_id processing_time ... k_22 machine_id processing_time ...
-...
+n_ops_job2 ...
 ```
 
-`metadata` là tùy chọn đối với bộ đọc của project; nếu có, giá trị này chỉ dùng
-để tham khảo, không quyết định danh sách máy hợp lệ của công đoạn.
+`metadata` (nếu có) chỉ tham khảo; danh sách máy hợp lệ lấy từ từng `k_ij`.
 
-| Trường | Ý nghĩa |
-| --- | --- |
-| `n_jobs` | Số job |
-| `n_machines` | Tổng số máy |
-| `metadata` | Tham số mô tả độ linh hoạt, dùng để tham khảo |
-| `n_ops_jobi` | Số công đoạn của job `i` |
-| `k_ij` | Số máy có thể thực hiện công đoạn `j` của job `i` |
-| `machine_id processing_time` | Mã máy và thời gian xử lý trên máy đó |
+### 2.2. Tóm tắt 
 
-Sau dòng đầu, **mỗi dòng tương ứng với một job**. Sau số công đoạn, lần lượt đọc từng công đoạn: đọc `k_ij`, rồi đọc đúng `k_ij` cặp `(machine_id, processing_time)`. Thứ tự các công đoạn trên dòng chính là thứ tự bắt buộc trong job. Các máy trong một công đoạn là những phương án thay thế; lời giải chỉ chọn một máy.
-
-### Ví dụ cụ thể
-
-File [`fattahi1.txt`](../instance/FattahiMehrabadJolai2007/fattahi1.txt):
-
-```text
-2 2 2
-2 2 1 25 2 37 2 1 32 2 24
-2 2 1 45 2 65 2 1 21 2 65
-```
-
-Instance này có 2 job, 2 máy và tổng cộng 4 công đoạn. Dòng job thứ nhất được tách thành:
-
-```text
-2 | 2 (1,25) (2,37) | 2 (1,32) (2,24)
-    Công đoạn O11     Công đoạn O12
-```
-
-| Job | Công đoạn | Thời gian trên M1 | Thời gian trên M2 |
-| --- | --- | ---: | ---: |
-| J1 | O11 | 25 | 37 |
-| J1 | O12 | 32 | 24 |
-| J2 | O21 | 45 | 65 |
-| J2 | O22 | 21 | 65 |
-
-Ví dụ, `O11` có thể chạy trên M1 trong 25 đơn vị thời gian hoặc M2 trong 37 đơn vị thời gian. Các quan hệ thứ tự là `O11 → O12` và `O21 → O22`. Thời điểm bắt đầu và kết thúc chưa có trong input; chúng được xác định khi lập lịch.
-
-### Lưu ý khi đọc dữ liệu
-
-- Mã máy trong file bắt đầu từ **1**. Các giá trị thời gian được hiểu theo cùng một đơn vị thời gian quy ước; file không ghi đơn vị vật lý.
-- Số công đoạn có thể khác nhau giữa các job; số máy phù hợp có thể khác nhau giữa các công đoạn.
-- Dùng khoảng trắng bất kỳ để tách token vì dữ liệu chứa cả dấu cách và tab; bỏ qua dòng trống.
-- `metadata` có thể là số thực và không luôn bằng số máy thay thế trung bình tính từ dữ liệu. Ví dụ, `mk01.txt` ghi `10 6 2` nhưng có 115 lựa chọn máy cho 55 công đoạn, trung bình khoảng `2,09`. Bộ đọc phải dựa vào `k_ij` của từng công đoạn.
-- File `orb7.txt` trong cả bốn nhóm Hurink có công đoạn với thời gian xử lý bằng **0**. Cần giữ nguyên dữ liệu và xử lý trường hợp này khi giải mã lịch.
-
-## 2. Các bộ instance sử dụng
-
-Thư mục hiện có **400 instance thuộc 7 bộ dữ liệu nguồn**; riêng Hurink được chia thành 4 nhóm. Các khoảng giá trị dưới đây được thống kê trực tiếp từ những file đang có trong repository. Số công đoạn là tổng số công đoạn của một instance.
-
-| Bộ dữ liệu / thư mục | Số file | Số job | Số máy | Số công đoạn | Đặc điểm |
-| --- | ---: | ---: | ---: | ---: | --- |
-| [KacemHammadiBorne2002](../instance/KacemHammadiBorne2002/) | 4 | 4–15 | 5–10 | 12–56 | Mọi công đoạn đều có thể chạy trên mọi máy; thời gian phụ thuộc máy. Phù hợp minh họa việc gán máy và kiểm tra lời giải. |
-| [FattahiMehrabadJolai2007](../instance/FattahiMehrabadJolai2007/) | 20 | 2–12 | 2–8 | 4–48 | Quy mô nhỏ, tập máy lựa chọn thay đổi theo công đoạn; phù hợp kiểm tra bộ đọc và thuật toán trên ví dụ dễ theo dõi. |
-| [Brandimarte1993](../instance/Brandimarte1993/) | 15 | 10–30 | 4–15 | 55–284 | Gồm `mk01`–`mk15`, độ linh hoạt khác nhau và thời gian phụ thuộc máy; dùng đánh giá đồng thời quyết định gán máy và thứ tự xử lý. |
-| [DauzerePeresPaulli1994](../instance/DauzerePeresPaulli1994/) | 18 | 10–20 | 5–10 | 196–387 | Gồm `01a`–`18a`, nhiều công đoạn trong mỗi instance; số lựa chọn máy và thời gian xử lý thay đổi. |
-| [ChambersBarnes1996](../instance/ChambersBarnes1996/) | 19 | 10–15 | 11–18 | 100–225 | Độ linh hoạt thấp, trung bình khoảng 1,07–1,30 máy/công đoạn; một công đoạn có cùng thời gian trên các máy phù hợp. |
-| [BehnkeGeiger2012](../instance/BehnkeGeiger2012/) | 60 | 10–100 | 20–60 | 50–500 | Nhiều máy và nhiều phương án gán máy, trung bình khoảng 6,08–22,24 máy/công đoạn; phù hợp đánh giá khả năng mở rộng. |
-| [Hurink — sdata](../instance/HurinkJurischThole1994/sdata/) | 66 | 6–30 | 4–15 | 36–300 | Mỗi công đoạn chỉ có một máy phù hợp; tương ứng trường hợp Job Shop không có lựa chọn máy. |
-| [Hurink — edata](../instance/HurinkJurischThole1994/edata/) | 66 | 6–30 | 4–15 | 36–300 | Độ linh hoạt thấp, trung bình khoảng 1,13–1,21 máy/công đoạn. |
-| [Hurink — rdata](../instance/HurinkJurischThole1994/rdata/) | 66 | 6–30 | 4–15 | 36–300 | Độ linh hoạt cao hơn `edata`, trung bình khoảng 1,88–2,08 máy/công đoạn. |
-| [Hurink — vdata](../instance/HurinkJurischThole1994/vdata/) | 66 | 6–30 | 4–15 | 36–300 | Nhiều lựa chọn máy hơn, trung bình khoảng 2,09–6,70 máy/công đoạn. |
-
-Với mỗi nhóm, khoảng số máy/công đoạn được tính bằng cách lấy trung bình trong từng instance, rồi lấy giá trị nhỏ nhất và lớn nhất của nhóm; không lấy trực tiếp từ `metadata`.
-
-Các bộ khác nhau về quy mô và khả năng lựa chọn máy, nhưng đều được đánh giá theo cùng mục tiêu **tối thiểu hóa makespan** trong phạm vi benchmark đang sử dụng. Với Hurink và Chambers–Barnes, dù thời gian xử lý không phụ thuộc máy, việc lựa chọn máy và thứ tự xử lý vẫn có thể tác động đến makespan. Riêng nhóm `sdata` đã cố định máy cho từng công đoạn, nên thuật toán chỉ cần tối ưu thứ tự xử lý.
-
-## 3. Best known solution và cách so sánh
-
-Nguồn tham chiếu: [FJSPLIB — Best known solutions per instance family](https://scheduleopt.github.io/benchmarks/fjsplib#best-known-solutions-per-instance-family). Các giá trị dưới đây được chốt ngày **10/11/2026**, từ [file `bks.json` tại commit `8a6e36e`](https://github.com/ScheduleOpt/benchmarks/blob/8a6e36ef31263d36975e56fb481e0ba04e188d6f/flexible-jobshop/solutions/bks.json) để có thể tái lập việc so sánh khi nguồn cập nhật.
-
-### 3.1. Ý nghĩa các mốc tham chiếu
-
-Các mốc này áp dụng cho bài toán **tối thiểu hóa makespan `C_max`**:
-
-- **LB (lower bound):** cận dưới tốt nhất mà nguồn ghi nhận.
-- **UB (upper bound):** makespan của lời giải khả thi tốt nhất mà nguồn ghi nhận; dùng làm **BKS** để so sánh.
-- **LB = UB:** nguồn ghi nhận giá trị tối ưu. Đây là thông tin từ nguồn, chưa phải chứng minh được kiểm tra lại trong dự án.
-- **LB < UB:** vẫn còn khoảng cách giữa hai cận; đạt BKS chưa có nghĩa là đạt tối ưu.
-
-Bảng tổng hợp chỉ tính những file đang có trong dự án:
-
-| Bộ / nhóm instance | Số file có BKS | LB = UB | LB < UB |
+| Bộ / nhóm | Số file có BKS | LB = UB | LB < UB |
 | --- | ---: | ---: | ---: |
 | Kacem | 4 | 4 | 0 |
 | Fattahi | 20 | 20 | 0 |
@@ -119,18 +98,12 @@ Bảng tổng hợp chỉ tính những file đang có trong dự án:
 | Hurink / rdata | 66 | 54 | 12 |
 | Hurink / vdata | 66 | 65 | 1 |
 
-**Đối chiếu tên và dữ liệu:** cả 400 file cục bộ khớp nội dung với bản FJSPLIB tại commit trên sau khi chuẩn hóa xuống dòng. Với Dauzère-Pérès–Paulli, file `01a.txt` tương ứng khóa `dpp01a` trong JSON; với Hurink, `rdata/la01.txt` tương ứng `la01_rdata`. Chambers–Barnes trong dự án có 19/21 instance của nguồn, thiếu `seti5xy` và `seti5xyz`.
-
-Nguồn ghi kích thước `kacem1` là `4 × 6` và `fattahi6` là `3 × 2`, trong khi header file thực tế lần lượt là **`4 × 5`** và **`3 × 3`**. Do nội dung file khớp bản nguồn, vẫn sử dụng BKS theo đúng tên instance; kích thước input lấy từ file.
-
-### 3.2. Giá trị LB và BKS cho từng instance
-
-Mở từng bảng để tra cứu. Các số là đơn vị thời gian theo input; BKS thuộc về từng instance riêng lẻ, không có một giá trị BKS chung cho cả bộ.
+### 2.3. Bảng LB / BKS theo instance
 
 <details>
 <summary>Kacem — 4 instance</summary>
 
-| Instance trong dự án | LB | BKS (`UB`) |
+| Instance | LB | BKS (`UB`) |
 | --- | ---: | ---: |
 | `kacem1.txt` | 11 | 11 |
 | `kacem2.txt` | 11 | 11 |
@@ -142,7 +115,7 @@ Mở từng bảng để tra cứu. Các số là đơn vị thời gian theo in
 <details>
 <summary>Fattahi — 20 instance</summary>
 
-| Instance trong dự án | LB | BKS (`UB`) |
+| Instance | LB | BKS (`UB`) |
 | --- | ---: | ---: |
 | `fattahi1.txt` | 66 | 66 |
 | `fattahi2.txt` | 107 | 107 |
@@ -170,7 +143,7 @@ Mở từng bảng để tra cứu. Các số là đơn vị thời gian theo in
 <details>
 <summary>Brandimarte — 15 instance</summary>
 
-| Instance trong dự án | LB | BKS (`UB`) |
+| Instance | LB | BKS (`UB`) |
 | --- | ---: | ---: |
 | `mk01.txt` | 40 | 40 |
 | `mk02.txt` | 26 | 26 |
@@ -193,7 +166,7 @@ Mở từng bảng để tra cứu. Các số là đơn vị thời gian theo in
 <details>
 <summary>Dauzère-Pérès–Paulli — 18 instance</summary>
 
-| Instance trong dự án | LB | BKS (`UB`) |
+| Instance | LB | BKS (`UB`) |
 | --- | ---: | ---: |
 | `01a.txt` | 2505 | 2505 |
 | `02a.txt` | 2228 | 2228 |
@@ -219,7 +192,7 @@ Mở từng bảng để tra cứu. Các số là đơn vị thời gian theo in
 <details>
 <summary>Chambers–Barnes — 19 instance</summary>
 
-| Instance trong dự án | LB | BKS (`UB`) |
+| Instance | LB | BKS (`UB`) |
 | --- | ---: | ---: |
 | `mt10c1.txt` | 927 | 927 |
 | `mt10cc.txt` | 908 | 908 |
@@ -246,7 +219,7 @@ Mở từng bảng để tra cứu. Các số là đơn vị thời gian theo in
 <details>
 <summary>Behnke–Geiger — 60 instance</summary>
 
-| Instance trong dự án | LB | BKS (`UB`) |
+| Instance | LB | BKS (`UB`) |
 | --- | ---: | ---: |
 | `behnke1.txt` | 90 | 90 |
 | `behnke2.txt` | 91 | 91 |
@@ -312,9 +285,9 @@ Mở từng bảng để tra cứu. Các số là đơn vị thời gian theo in
 </details>
 
 <details>
-<summary>Hurink — 66 instance gốc × 4 nhóm = 264 instance</summary>
+<summary>Hurink — 66 instance gốc × 4 nhóm</summary>
 
-Mỗi ô ghi `LB / UB`. Khi hai cận bằng nhau, chỉ ghi một số. Cần chọn đúng cột ứng với thư mục `sdata`, `edata`, `rdata` hoặc `vdata`.
+Mỗi ô ghi `LB / UB`. Khi hai cận bằng nhau, chỉ ghi một số. Chọn cột theo thư mục `sdata`, `edata`, `rdata` hoặc `vdata`.
 
 | Tên file | sdata | edata | rdata | vdata |
 | --- | ---: | ---: | ---: | ---: |
@@ -387,20 +360,18 @@ Mỗi ô ghi `LB / UB`. Khi hai cận bằng nhau, chỉ ghi một số. Cần c
 
 </details>
 
-### 3.3. Cách báo cáo kết quả so với BKS
+### 3.3. Báo cáo RPD makespan so với BKS
 
-Với một lịch khả thi có makespan `C`, tính độ lệch tương đối:
+Với lịch khả thi có makespan `C`:
 
 ```text
 RPD_BKS (%) = 100 × (C - UB) / UB
 ```
 
-- `RPD_BKS = 0`: đạt best known theo bản dữ liệu đã chốt; chỉ kết luận tối ưu khi `LB = UB`.
-- `RPD_BKS > 0`: makespan lớn hơn BKS; càng nhỏ càng tốt.
-- `RPD_BKS < 0`: có thể cải thiện BKS đã chốt; cần kiểm tra tính khả thi của lịch và sự trùng khớp dữ liệu trước khi báo cáo.
+- `RPD_BKS = 0`: đạt BKS theo snapshot; chỉ kết luận tối ưu khi `LB = UB`
+- `RPD_BKS > 0`: tệ hơn BKS
+- `RPD_BKS < 0`: có thể cải thiện BKS đã chốt — kiểm tra tính khả thi và khớp dữ liệu trước khi công bố
 
-Ví dụ, với `mk01`, `LB = UB = 40`: thuật toán tìm được `C = 42` thì `RPD_BKS = 5%`. Với `mk10`, `LB = 189`, `UB = 193`: tìm được `C = 193` là đạt BKS, nhưng chưa xác nhận tối ưu.
+Ví dụ: `mk01` có `LB = UB = 40`; `C = 42` → RPD = 5%. `mk10` có `LB = 189`, `UB = 193`; đạt `C = 193` là đạt BKS nhưng chưa xác nhận tối ưu.
 
-Riêng khi đối chiếu BKS makespan, xét thành phần `C_max` của từng lời giải sau khi giải mã. Khi kết thúc một lần chạy, có thể lấy makespan nhỏ nhất trong các lịch khả thi đã tìm được để so sánh với BKS; kết quả này chưa đánh giá toàn bộ tập nghiệm ba mục tiêu. Trước khi tính RPD, cần kiểm tra lịch thỏa điều kiện chọn máy, thứ tự công đoạn và không chồng lấn trên cùng máy.
-
-Khi chạy nhiều seed, nên ghi `C_best`, `C_mean ± std`, RPD tương ứng, số lần đạt BKS, thời gian chạy, cấu hình máy và số lần chạy. Nếu tổng hợp nhiều instance, tính RPD riêng cho từng instance trước khi lấy trung bình. BKS là mốc chất lượng lời giải, không tự tạo ra một phép so sánh công bằng về tốc độ chạy giữa các thuật toán.
+Khi chạy nhiều seed: ghi `C_best`, `C_mean ± std`, RPD, số lần đạt BKS, thời gian và cấu hình. RPD từng instance trước khi trung bình hóa. BKS makespan **không** thay thế HV/IGD+/C(A,B) trên bộ `instance/main/` — xem [EVALUATE.md](EVALUATE.md).

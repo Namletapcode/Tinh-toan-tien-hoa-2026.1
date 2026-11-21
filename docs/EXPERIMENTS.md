@@ -1,5 +1,7 @@
 # Thực nghiệm và đối chiếu module
 
+[README](../README.md) · [Dữ liệu](BENCHMARKS.md) · [Đánh giá](EVALUATE.md) · [Mô hình FJSP](FJSP.md)
+
 ## 1. Cấu hình baseline
 
 Luồng thí nghiệm mặc định đọc cấu hình tham số từ [baseline_validation.json](../scripts/configs/baseline_validation.json).
@@ -10,30 +12,35 @@ Mỗi đợt lưu bản protocol và hash trong manifest. Đây là cấu hình 
 | --- | --- |
 | Thuật toán / phân rã | `Moead` cơ bản / Tchebycheff|
 | Khởi tạo | Ngẫu nhiên |
-| Trọng số / quần thể | Lưới simplex ba chiều `H=12` / 91 nghiệm |
+| Trọng số / quần thể | Lưới simplex hai chiều `H=12` / 13 nghiệm |
 | Láng giềng | 10, theo khoảng cách giữa các trọng số |
 | `pc` / `pm` | 0.8 / 0.05, cố định, cách áp dụng xem [FJSP.md](FJSP.md) |
-| Ngân sách | 1.000 NFE/lượt, gồm 91 nghiệm đầu |
+| Ngân sách | 1.000 NFE/lượt, gồm 13 nghiệm đầu |
 | Seed chính / lặp độc lập | 0–9 / chạy lại seed 0 |
-| Checkpoint | 91, 250, 500, 1.000 NFE |
-| Tập bài | 9 instance thuộc 7 họ dữ liệu, liệt kê trong bảng đối chiếu |
+| Checkpoint | 13, 250, 500, 1.000 NFE |
+| Tập bài | Toàn bộ 84 instance trong `instance/main/` (Brandimate + Dauzere, 3 mức hạn chót) |
+| Mục tiêu | Makespan, TWT |
 
 Quy ước NFE, archive và đánh giá phụ khi mở rộng nằm trong [FJSP.md](FJSP.md).
 
 ## 2. Run, resume và lưu kết quả
 
-Từ thư mục gốc, chọn một thư mục output chưa tồn tại:
+Từ thư mục gốc, chọn một thư mục output chưa tồn tại. Config mặc định
+(`baseline_validation.json`, `"instances": "all_main"`) chạy hết cả 2 bộ data:
 
 ```powershell
-./.venv/Scripts/python.exe scripts/run_baseline_validation.py --config scripts/configs/baseline_validation.json --output-dir results/my_experiment
+./.venv/Scripts/python.exe scripts/run_baseline_validation.py --output-dir results/my_experiment
 ```
 
-Protocol trên chạy 90 lượt chính và 9 lượt lặp seed, tổng 99.000 NFE.
+Protocol: 84 × 10 seed + 84 lượt lặp = 924 lượt (924.000 NFE). Nên dùng
+`--resume` nếu gián đoạn; có thể thêm `--no-plot` nếu không cần hình.
+
 Để tiếp tục đợt bị gián đoạn hoặc dựng lại bảng từ các lượt đã lưu:
 
 ```powershell
-./.venv/Scripts/python.exe scripts/run_baseline_validation.py --config scripts/configs/baseline_validation.json --output-dir results/my_experiment --resume
+./.venv/Scripts/python.exe scripts/run_baseline_validation.py --output-dir results/my_experiment --resume
 ```
+
 
 `--resume` kiểm tra checksum và tái sử dụng các lượt đã hoàn tất, chỉ chạy
 phần thiếu. Mã, input, protocol, Python và NumPy phải khớp manifest, nếu thay
@@ -64,14 +71,14 @@ so sánh trace, gene/lịch archive và checkpoint, không so thời gian.
 
 Đánh giá HV (Hypervolume):
 
-HV được tính trên 3 mục tiêu đều cần tối thiểu hóa (minimize). Các giá trị chỉ được chuẩn hóa khi báo cáo:
+HV được tính trên 2 mục tiêu đều cần tối thiểu hóa (minimize). Các giá trị chỉ được chuẩn hóa khi báo cáo:
 
 ```text
 f_scaled[i] = (f[i] - L[i]) / max(U[i] - L[i], 1)
-HV_score = HV(front_scaled, reference=(1.1, 1.1, 1.1)) / 1.1^3
+HV_score = HV(front_scaled, reference=(1.1, 1.1)) / 1.1^2
 ```
 
-- L/U: Cận dưới/trên được tính trước từ dữ liệu đầu vào, không phụ thuộc kết quả chạy. Cận dựa trên thời gian xử lý, đường công việc và tải máy; riêng cận makespan giả định decoder không chủ động chờ.
+- L/U: Cận dưới/trên được tính trước từ dữ liệu đầu vào, không phụ thuộc kết quả chạy. Cận makespan dựa trên đường công việc/tải máy; cận TWT dưới là 0 và cận trên conservative theo makespan serial + due dates.
 
 - Xử lý giá trị: Mục tiêu cố định được chuẩn hóa về 0; giá trị vượt cận bị từ chối, không cắt ngưỡng.
 
@@ -79,7 +86,12 @@ HV_score = HV(front_scaled, reference=(1.1, 1.1, 1.1)) / 1.1^3
 
 - HV archive: Không giảm chỉ chứng tỏ archive lưu giữ nghiệm, chưa đủ kết luận thuật toán cải thiện.
 
-- IGD: Chưa tính cho bài toán lớn vì thiếu Pareto front tham chiếu.
+- IGD+ và C(A,B): Không ghi vào JSON từng lượt. Sau khi có hai thư mục study
+  (ví dụ baseline và bản cải tiến), chạy
+  `scripts/compare_studies.py --study-a ... --study-b ... --output ...` để xây
+  reference front empirical chung từng instance, tính IGD+ (chuẩn hóa bằng
+  bounds trong manifest, giống HV) và Set Coverage C(A,B)/C(B,A). HV trong
+  study vẫn là metric chính của từng lượt chạy. Chi tiết: [EVALUATE.md](EVALUATE.md).
 
 - Giá trị cực tiểu: Min của từng mục tiêu có thể đến từ các nghiệm hoặc seed khác nhau, không được ghép thành một nghiệm chung.
 
@@ -90,8 +102,44 @@ checkpoint. Không gồm đọc input, tính HV/Pareto độc lập, kiểm tra 
 xuất file. So thời gian cần cùng máy, môi trường và cách kiểm tra.
 
 ## 4. Mốc kết quả đối chiếu
-Kết quả lượt chạy baseline. HV dưới đây là trung bình ± độ lệch
-chuẩn mẫu trên 10 seed tại NFE 1.000, Cmax là giá trị tốt nhất quan sát được.
+Các số liệu dưới đây thuộc baseline cũ (3 mục tiêu workload). Cần chạy lại
+protocol Makespan+TWT trên `instance/main/` để cập nhật bảng.
+(fjsp-moead) PS D:\Documents\Tính toán tiến hoá\Tinh-toan-tien-hoa-2026.1> conda activate fjsp-moead
+(fjsp-moead) PS D:\Documents\Tính toán tiến hoá\Tinh-toan-tien-hoa-2026.1> python scripts/run_fjsp.py
+{
+  "instance": "Mk01",
+  "instance_sha256": "6f9654e46e2cbabc41ce387eb3b501cc5021f8a2e6ec7cac407abbe14e2c547b",
+  "algorithm": "Moead",
+  "aggregation": "Tchebycheff",
+  "seed": 1,
+  "objective_names": [
+    "makespan",
+    "twt"
+  ],
+  "directions": [
+    "minimize",
+    "minimize"
+  ],
+  "partitions": 12,
+  "population_size": 13,
+  "neighbors": 10,
+  "crossover_probability": 0.8,
+  "mutation_probability": 0.05,
+  "requested_evaluations": 1000,
+  "current_eval": 1000,
+  "actual_evaluations": 1000,
+  "elapsed_seconds": 1.209307,
+  "archive_size": 1,
+  "objective_vectors": [
+    [
+      58,
+      297
+    ]
+  ],
+  "all_schedules_valid": true
+}
+Kết quả lượt chạy baseline cũ. HV là trung bình ± độ lệch chuẩn mẫu trên 10
+seed tại NFE 1.000, Cmax là giá trị tốt nhất quan sát được.
 
 | Instance | HV trung bình ± SD | Cmax tốt nhất |
 | --- | ---: | ---: |

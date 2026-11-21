@@ -1,23 +1,21 @@
 # FJSP: mô hình, kiến trúc và tích hợp module
 
-[README](../README.md) · [Thực nghiệm](EXPERIMENTS.md) · [Dữ liệu](BENCHMARKS.md)
+[README](../README.md) · [Thực nghiệm](EXPERIMENTS.md) · [Dữ liệu](BENCHMARKS.md) · [Đánh giá](EVALUATE.md)
 
 ## 1. Mô hình và mục tiêu
 
-FJSP tĩnh: job và máy sẵn sàng tại thời điểm 0, công đoạn theo thứ tự trong job,
-mỗi máy xử lý tối đa một công đoạn tại một thời điểm, công đoạn không bị ngắt.
-Mỗi công đoạn chọn một máy trong danh sách hợp lệ. Chưa xét setup, vận chuyển,
-deadline, sự cố hoặc thời điểm đến khác 0. Thời gian xử lý là số nguyên không âm.
+FJSP có hạn chót: công đoạn theo thứ tự trong job, mỗi máy xử lý tối đa một
+công đoạn tại một thời điểm, công đoạn không bị ngắt. Mỗi công đoạn chọn một
+máy trong danh sách hợp lệ. Mỗi job có `r_j`, `d_j`, `w_j`. Chưa xét setup,
+vận chuyển hay sự cố. Thời gian xử lý là số nguyên không âm.
 
 | Mục tiêu, theo thứ tự trong `solution.F` | Cách tính |
 | --- | --- |
 | `makespan` | Thời điểm kết thúc lớn nhất |
-| `total_workload` | Tổng thời gian gia công, không gồm thời gian nhàn rỗi |
-| `max_machine_workload` | Tổng thời gian gia công lớn nhất trên một máy |
+| `total work tardiness` | $\sum_j w_j \max(0, C_j - d_j)$ |
 
-Cả ba cùng minimize. Giữ nguyên MS và đổi OS có thể đổi makespan; hai mục tiêu
-tải chỉ phụ thuộc cách gán máy. Mô tả dữ liệu trong
-[BENCHMARKS](BENCHMARKS.md).
+Cả hai cùng minimize. Dữ liệu chạy chính: [BENCHMARKS.md](BENCHMARKS.md)
+(`instance/main`). Độ đo và protocol: [EVALUATE.md](EVALUATE.md).
 
 ## 2. Biểu diễn OS/MS (mã hóa) và giải mã
 
@@ -37,10 +35,11 @@ nhưng chưa giải mã. Instance và chromosome là cấu trúc bất biến.
 
 **Giải mã**:
 `decode(instance, chromosome)` duyệt OS, tra MS theo vị trí cố định của công
-đoạn và chèn vào khoảng trống sớm nhất sau công đoạn trước cùng job. Có xét
-khoảng trống đầu máy, giữa các công đoạn và sau công đoạn cuối. OS là thứ tự
-ưu tiên đưa công đoạn vào lịch; công đoạn xét sau có thể bắt đầu sớm hơn trên
-máy khác. Các công đoạn đã xếp không bị dịch chuyển.
+đoạn và chèn vào khoảng trống sớm nhất sau `max(release_date, công đoạn trước)`.
+Có xét khoảng trống đầu máy, giữa các công đoạn và sau công đoạn cuối. OS là
+thứ tự ưu tiên đưa công đoạn vào lịch; công đoạn xét sau có thể bắt đầu sớm hơn
+trên máy khác. Các công đoạn đã xếp không bị dịch chuyển. TWT được tính từ
+`completion_times` và `(d_j, w_j)`.
 
 Cho phép tiếp giáp `end_trước <= start_sau`. Công đoạn thời gian 0 có thể nằm
 ở đầu/cuối một khoảng bận nhưng không nằm bên trong khoảng máy đang bận.
@@ -57,7 +56,7 @@ thứ tự trong job, không chồng lấn máy và tải khớp lịch.
 | --- | --- |
 | [algorithm/abstract_moead.py](../vendor/moead_framework/algorithm/abstract_moead.py) | Vòng lặp, ngân sách, láng giềng, điểm lý tưởng, quần thể và archive |
 | [algorithm/moead.py](../vendor/moead_framework/algorithm/moead.py) | Lớp MOEA/D dùng để lắp các component |
-| [algorithm/fjsp.py](../vendor/moead_framework/algorithm/fjsp.py) | Factory FJSP và trọng số simplex ba chiều |
+| [algorithm/fjsp.py](../vendor/moead_framework/algorithm/fjsp.py) | Factory FJSP và trọng số simplex hai chiều |
 | [problem/fjsp/instance.py](../vendor/moead_framework/problem/fjsp/instance.py) | Bộ đọc và cấu trúc instance |
 | [problem/fjsp/encoding.py](../vendor/moead_framework/problem/fjsp/encoding.py) | Chromosome và kiểm tra OS/MS |
 | [problem/fjsp/decoder.py](../vendor/moead_framework/problem/fjsp/decoder.py) | Decoder, lịch và kiểm tra khả thi |
@@ -95,7 +94,7 @@ Khởi tạo ngẫu nhiên; các xác suất giữ cố định.
 - `z` bắt đầu bằng cực tiểu từng mục tiêu của quần thể đầu và cập nhật từ các
   nghiệm quan sát được. Baseline dùng Tchebycheff với mục tiêu gốc, không
   chuẩn hóa trong thuật toán.
-- **Một NFE** là một lần đánh giá đủ ba mục tiêu của một ứng viên, gồm cả khởi
+- **Một NFE** là một lần đánh giá đủ hai mục tiêu của một ứng viên, gồm cả khởi
   tạo và nghiệm lặp. `FJSPProblem.evaluate()` giải mã một lần, tăng
   `evaluation_count` một và lưu gene, `F`, `schedule`.
 - Dùng `evaluate()` khi tạo con. Gọi riêng `f(i, vector)` cũng tiêu một lần
@@ -140,7 +139,7 @@ class CustomOperator(FJSPCrossoverAndMutation):
     """Kế thừa constructor; override run() khi triển khai ý tưởng."""
 
 set_seed(1)
-problem = FJSPProblem("instance/FattahiMehrabadJolai2007/fattahi1.txt")
+problem = FJSPProblem("instance/main/Brandimate1993/Loose/Mk01/Mk01.fjs")
 algorithm = create_fjsp_moead(
     problem, partitions=2, number_of_weight_neighborhood=3, max_evaluation=13,
 )
@@ -163,21 +162,12 @@ cha mẹ, mục tiêu/lịch khớp, đúng ngân sách và tái lập seed. Cá
 | `test_core_regressions.py` | NFE, `z`, sao chép nghiệm, archive và láng giềng |
 | `test_fjsp_experiments.py` | HV, ghi kết quả, tiếp tục chạy và kiểm tra checksum |
 
-## 6. Ví dụ giải mã tính tay
+## 6. Ví dụ giải mã
 
 ```powershell
-./.venv/Scripts/python.exe scripts/smoke_fjsp.py --os "0,1,0,1" --ms "1,1,0,0" --show-operations
+./.venv/Scripts/python.exe scripts/smoke_fjsp.py --show-operations
 ```
 
-Với `fattahi1`, nhãn trong bảng là 1-based để đọc:
-
-| Công đoạn | Máy | Start | End |
-| --- | --- | ---: | ---: |
-| J1/O1 | M2 | 0 | 37 |
-| J2/O1 | M1 | 0 | 45 |
-| J1/O2 | M2 | 37 | 61 |
-| J2/O2 | M1 | 45 | 66 |
-
-Tải máy `(66,61)`, ba mục tiêu `(66,127,66)`. Đây là giải mã chromosome đã cho.
-JSON và API dùng chỉ số 0-based. Giới hạn thực nghiệm và cách đánh giá module
-xem [EXPERIMENTS.md](EXPERIMENTS.md).
+Mặc định đọc Brandimate Loose `Mk01`. JSON báo `makespan` và `twt`. API dùng
+chỉ số 0-based. Giới hạn thực nghiệm và cách đánh giá module xem
+[EXPERIMENTS.md](EXPERIMENTS.md).

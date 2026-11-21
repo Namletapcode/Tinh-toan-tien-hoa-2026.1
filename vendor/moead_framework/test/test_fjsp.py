@@ -15,19 +15,40 @@ from moead_framework.problem.fjsp import (
 
 
 ROOT = Path(__file__).resolve().parents[3]
+DATA_MAIN = ROOT / "instance" / "main"
+
+# Tiny Fattahi-like instance with due dates chosen for a hand-checked TWT.
+FATTAHI_TEXT = """\
+2 2
+2 2 1 25 2 37 2 1 32 2 24 0 50 2
+2 2 1 45 2 65 2 1 21 2 65 0 60 1
+"""
+
+
+def make_instance(machine_count, jobs, release=None, due=None, weight=None):
+    job_count = len(jobs)
+    return FJSPInstance(
+        machine_count, jobs,
+        release_dates=tuple(release if release is not None else (0,) * job_count),
+        due_dates=tuple(due if due is not None else (10 ** 9,) * job_count),
+        weights=tuple(weight if weight is not None else (1,) * job_count),
+    )
 
 
 @pytest.fixture
 def fattahi():
-    return load_instance(ROOT / "instance/FattahiMehrabadJolai2007/fattahi1.txt")
+    return parse_instance(FATTAHI_TEXT, name="fattahi1")
 
 
 def test_parse_preserves_option_order_and_converts_physical_machine_ids():
-    instance = parse_instance("\n1\t5\t1.5\n\n1  2  5 4  2 7\n", name="unsorted")
+    instance = parse_instance("\n1\t5\t1.5\n\n1  2  5 4  2 7  0 10 1\n", name="unsorted")
     assert instance.name == "unsorted"
     assert instance.metadata == 1.5
     assert (instance.job_count, instance.machine_count, instance.operation_count) == (1, 5, 1)
     assert instance.jobs[0][0] == (MachineOption(4, 4), MachineOption(1, 7))
+    assert instance.release_dates == (0,)
+    assert instance.due_dates == (10,)
+    assert instance.weights == (1,)
     first = decode(instance, Chromosome((0,), (0,)))
     second = decode(instance, Chromosome((0,), (1,)))
     assert first.operations[0].machine == 4  # MS=0 means the first option, not machine 0.
@@ -36,22 +57,29 @@ def test_parse_preserves_option_order_and_converts_physical_machine_ids():
 
 
 def test_load_supports_utf8_bom_and_optional_header_metadata(tmp_path):
-    path = tmp_path / "bom.txt"
-    path.write_text("1 1\r\n1 1 1 0\r\n", encoding="utf-8-sig")
+    path = tmp_path / "bom.fjs"
+    path.write_text("1 1\r\n1 1 1 0 0 5 1\r\n", encoding="utf-8-sig")
     instance = load_instance(path)
     assert instance.name == "bom"
     assert instance.metadata is None
     assert instance.jobs[0][0][0].duration == 0
+    assert instance.due_dates == (5,)
+
+
+def test_parser_requires_trailing_release_due_and_weight():
+    with pytest.raises(ValueError, match="release date, due date and weight"):
+        parse_instance("1 1\n1 1 1 2\n")
 
 
 @pytest.mark.parametrize("text", [
-    "", "1", "1 1 2 3\n1 1 1 2", "x 1\n1 1 1 2",
-    "0 1", "1 0\n1 1 1 2", "1 1 nan\n1 1 1 2", "1 1 nope\n1 1 1 2",
-    "2 1\n1 1 1 2", "1 1\n1 1 1 2\n1 1 1 2", "1 1\n0",
-    "1 1\n2 1 1 2", "1 1\n1 0", "1 1\n1 -1", "1 1\n1 2 1 2",
-    "1 1\n1 1 0 2", "1 1\n1 1 2 2", "1 1\n1 1 1 -2",
-    "1 1\n1 1 1 2 extra", "1 1\n1 1 1 2 7", "1 1\n1 2 1 2 1 3",
-    "1 1\n1 1 1 2.5",
+    "", "1", "1 1 2 3\n1 1 1 2 0 5 1", "x 1\n1 1 1 2 0 5 1",
+    "0 1", "1 0\n1 1 1 2 0 5 1", "1 1 nan\n1 1 1 2 0 5 1", "1 1 nope\n1 1 1 2 0 5 1",
+    "2 1\n1 1 1 2 0 5 1", "1 1\n1 1 1 2 0 5 1\n1 1 1 2 0 5 1", "1 1\n0",
+    "1 1\n2 1 1 2 0 5 1", "1 1\n1 0 0 5 1", "1 1\n1 -1 0 5 1", "1 1\n1 2 1 2 0 5 1",
+    "1 1\n1 1 0 2 0 5 1", "1 1\n1 1 2 2 0 5 1", "1 1\n1 1 1 -2 0 5 1",
+    "1 1\n1 1 1 2 extra 0 5 1", "1 1\n1 1 1 2 0 5", "1 1\n1 1 1 2 0 5 1 9",
+    "1 1\n1 2 1 2 1 3 0 5 1", "1 1\n1 1 1 2.5 0 5 1",
+    "1 1\n1 1 1 2 -1 5 1", "1 1\n1 1 1 2 0 5 0",
 ])
 def test_parser_rejects_malformed_or_inconsistent_input(text):
     with pytest.raises(ValueError):
@@ -61,7 +89,7 @@ def test_parser_rejects_malformed_or_inconsistent_input(text):
 def test_models_do_not_alias_mutable_input_lists():
     options = [MachineOption(0, 2)]
     jobs = [[options]]
-    instance = FJSPInstance(1, jobs)
+    instance = make_instance(1, jobs, due=(4,), weight=(2,))
     options.append(MachineOption(0, 9))
     jobs.clear()
     assert instance.jobs == (((MachineOption(0, 2),),),)
@@ -111,7 +139,7 @@ def test_seeded_random_encoding_is_valid_and_reproducible(fattahi):
         assert Chromosome.from_vector(fattahi, chromosome.to_vector()) == chromosome
 
 
-def test_hand_calculated_fattahi_schedule_and_all_three_objectives(fattahi):
+def test_hand_calculated_fattahi_schedule_and_makespan_twt(fattahi):
     chromosome = Chromosome((0, 1, 0, 1), (1, 1, 0, 0))
     schedule = decode(fattahi, chromosome)
     assert schedule.operations == (
@@ -121,52 +149,64 @@ def test_hand_calculated_fattahi_schedule_and_all_three_objectives(fattahi):
         ScheduledOperation(1, 1, 0, 45, 66),
     )
     assert schedule.machine_loads == (66, 61)
-    assert schedule.objectives == (66, 127, 66)
+    assert schedule.completion_times == (61, 66)
+    assert schedule.twt == 2 * 11 + 1 * 6
+    assert schedule.objectives == (66, 28)
     validate_schedule(fattahi, schedule)
     decode(fattahi, random_chromosome(fattahi, random.Random(42)))
     assert decode(fattahi, chromosome) == schedule  # No hidden decoder state.
 
 
 def test_decoder_inserts_before_the_first_existing_machine_operation():
-    instance = parse_instance("2 2\n2 1 1 5 1 2 3\n1 1 2 4\n")
+    instance = parse_instance("2 2\n2 1 1 5 1 2 3 0 100 1\n1 1 2 4 0 100 1\n")
     schedule = decode(instance, Chromosome((0, 0, 1), (0, 0, 0)))
     assert schedule.operations[-1] == ScheduledOperation(1, 0, 1, 0, 4)
-    assert schedule.objectives == (8, 12, 7)
+    assert schedule.objectives == (8, 0)
     validate_schedule(instance, schedule)
 
 
 def test_decoder_fills_an_internal_gap_at_exact_endpoint_boundaries():
-    instance = parse_instance("3 3\n2 1 1 3 1 2 2\n2 1 1 8 1 2 2\n2 1 3 5 1 2 6\n")
+    instance = parse_instance(
+        "3 3\n2 1 1 3 1 2 2 0 100 1\n2 1 1 8 1 2 2 0 100 1\n2 1 3 5 1 2 6 0 100 1\n"
+    )
     schedule = decode(instance, Chromosome((0, 0, 1, 1, 2, 2), (0,) * 6))
     assert schedule.operations[-1] == ScheduledOperation(2, 1, 1, 5, 11)
-    assert schedule.objectives == (13, 26, 11)
+    assert schedule.objectives == (13, 0)
     validate_schedule(instance, schedule)
 
 
 def test_ms_offsets_use_job_operation_order_with_unequal_job_lengths():
-    instance = parse_instance("2 3\n1 2 3 4 1 8\n2 2 2 2 3 5 1 1 3\n")
+    instance = parse_instance("2 3\n1 2 3 4 1 8 0 100 1\n2 2 2 2 3 5 1 1 3 0 100 1\n")
     assert instance.operations_per_job == (1, 2)
     assert instance.operation_offsets == (0, 1)
     schedule = decode(instance, Chromosome((1, 0, 1), (1, 0, 0)))
     assert [op.machine for op in schedule.operations] == [1, 0, 0]
     assert [op.duration for op in schedule.operations] == [2, 8, 3]
-    assert schedule.objectives == (11, 13, 11)
+    assert schedule.objectives == (11, 0)
     validate_schedule(instance, schedule)
 
 
 def test_zero_duration_operations_can_share_endpoints_but_respect_precedence():
-    instance = parse_instance("1 1\n3 1 1 0 1 1 3 1 1 0\n")
+    instance = parse_instance("1 1\n3 1 1 0 1 1 3 1 1 0 0 100 1\n")
     schedule = decode(instance, Chromosome((0, 0, 0), (0, 0, 0)))
     assert [(op.start, op.end) for op in schedule.operations] == [(0, 0), (0, 3), (3, 3)]
-    assert schedule.objectives == (3, 3, 3)
+    assert schedule.objectives == (3, 0)
     validate_schedule(instance, schedule)
 
 
 def test_zero_duration_operation_is_not_inserted_inside_a_busy_interval():
-    instance = parse_instance("2 2\n1 1 1 10\n2 1 2 5 1 1 0\n")
+    instance = parse_instance("2 2\n1 1 1 10 0 100 1\n2 1 2 5 1 1 0 0 100 1\n")
     schedule = decode(instance, Chromosome((0, 1, 1), (0, 0, 0)))
     assert schedule.operations[-1] == ScheduledOperation(1, 1, 0, 10, 10)
-    assert schedule.objectives == (10, 15, 10)
+    assert schedule.objectives == (10, 0)
+    validate_schedule(instance, schedule)
+
+
+def test_release_date_delays_the_first_operation_of_a_job():
+    instance = parse_instance("1 1\n1 1 1 5 3 10 2\n")
+    schedule = decode(instance, Chromosome((0,), (0,)))
+    assert schedule.operations[0] == ScheduledOperation(0, 0, 0, 3, 8)
+    assert schedule.objectives == (8, 0)
     validate_schedule(instance, schedule)
 
 
@@ -176,11 +216,11 @@ def test_earliest_start_matches_integer_time_search_on_small_random_instances():
         jobs = tuple(tuple(tuple(MachineOption(machine, rng.randrange(6))
                                  for machine in rng.sample(range(3), 2))
                            for _ in range(3)) for _ in range(3))
-        instance = FJSPInstance(3, jobs)
+        instance = make_instance(3, jobs)
         schedule = decode(instance, random_chromosome(instance, rng))
         validate_schedule(instance, schedule)
         previous = [[] for _ in range(3)]
-        job_end = [0] * 3
+        job_end = list(instance.release_dates)
         for operation in schedule.operations:
             earliest = next(t for t in range(job_end[operation.job], operation.start + 1) if all(
                 t + operation.duration <= busy.start or busy.end <= t
@@ -205,6 +245,8 @@ def test_validator_checks_structure_duration_precedence_and_loads(fattahi):
         replace(valid, operations=(replace(operations[0], operation=99),) + operations[1:]),
         replace(valid, operations=(replace(operations[0], machine=99),) + operations[1:]),
         replace(valid, operations=operations[:2] + (replace(operations[2], start=0, end=24),) + operations[3:]),
+        replace(valid, twt=valid.twt + 1),
+        replace(valid, completion_times=(0, 0)),
     ]
     for schedule in invalid:
         with pytest.raises(ValueError):
@@ -213,12 +255,20 @@ def test_validator_checks_structure_duration_precedence_and_loads(fattahi):
 
 
 def test_validator_rejects_capacity_overlap_and_ineligible_machine():
-    instance = parse_instance("2 2\n1 1 1 2\n1 1 1 2\n")
+    instance = parse_instance("2 2\n1 1 1 2 0 100 1\n1 1 1 2 0 100 1\n")
     valid = decode(instance, Chromosome((0, 1), (0, 0)))
     with pytest.raises(ValueError, match="overlap"):
-        validate_schedule(instance, replace(valid, operations=(valid.operations[0], ScheduledOperation(1, 0, 0, 1, 3))))
+        validate_schedule(instance, replace(
+            valid,
+            operations=(valid.operations[0], ScheduledOperation(1, 0, 0, 1, 3)),
+            completion_times=(2, 3),
+            twt=0,
+        ))
     with pytest.raises(ValueError, match="ineligible"):
-        validate_schedule(instance, replace(valid, operations=(replace(valid.operations[0], machine=1), valid.operations[1])))
+        validate_schedule(instance, replace(
+            valid,
+            operations=(replace(valid.operations[0], machine=1), valid.operations[1]),
+        ))
 
 
 def _pareto(points):
@@ -230,11 +280,7 @@ def _pareto(points):
 
 
 def _exhaustive_machine_order_front(instance):
-    """Independent tiny-instance oracle: machine permutations + longest paths.
-
-    This does not use decode(), gap insertion, Schedule or its objective fields.
-    The reference instance has strictly positive processing times.
-    """
+    """Independent tiny-instance oracle: machine permutations + longest paths."""
     options = [operation for job in instance.jobs for operation in job]
     offsets = instance.operation_offsets
     job_edges = [(offsets[j] + o - 1, offsets[j] + o)
@@ -244,7 +290,6 @@ def _exhaustive_machine_order_front(instance):
         selected = [op[choice] for op, choice in zip(options, choices)]
         per_machine = [[i for i, op in enumerate(selected) if op.machine == m]
                        for m in range(instance.machine_count)]
-        loads = [sum(selected[i].duration for i in group) for group in per_machine]
         for orders in product(*(permutations(group) for group in per_machine)):
             predecessors = [set() for _ in options]
             for before, after in job_edges + [(a, b) for order in orders for a, b in zip(order, order[1:])]:
@@ -253,16 +298,28 @@ def _exhaustive_machine_order_front(instance):
             while pending:
                 ready = [i for i in pending if not (predecessors[i] & pending)]
                 if not ready:
-                    break  # Cyclic machine/job order is infeasible for positive durations.
+                    break
                 for i in ready:
-                    ends[i] = max((ends[p] for p in predecessors[i]), default=0) + selected[i].duration
+                    job = next(j for j, offset in enumerate(offsets)
+                               if offset <= i < offset + len(instance.jobs[j]))
+                    ready_time = instance.release_dates[job] if i == offsets[job] else 0
+                    ends[i] = max([ready_time] + [ends[p] for p in predecessors[i]], default=ready_time) + selected[i].duration
                     pending.remove(i)
             if not pending:
-                points.add((max(ends.values()), sum(loads), max(loads)))
+                completion = tuple(
+                    ends[offsets[j] + len(job) - 1] for j, job in enumerate(instance.jobs)
+                )
+                twt = sum(
+                    weight * max(0, completion_time - due)
+                    for completion_time, due, weight in zip(
+                        completion, instance.due_dates, instance.weights
+                    )
+                )
+                points.add((max(completion), twt))
     return _pareto(points)
 
 
-def test_exhaustive_tiny_instance_matches_independent_three_objective_oracle(fattahi):
+def test_exhaustive_tiny_instance_matches_independent_bi_objective_oracle(fattahi):
     sequences = set(permutations((0, 0, 1, 1)))
     points = set()
     count = 0
@@ -279,8 +336,8 @@ def test_exhaustive_tiny_instance_matches_independent_three_objective_oracle(fat
 
 @pytest.fixture(scope="module")
 def repository_instances():
-    paths = sorted((ROOT / "instance").rglob("*.txt"))
-    assert len(paths) >= 400
+    paths = sorted(DATA_MAIN.rglob("*.fjs"))
+    assert len(paths) == 84
     return [(path, load_instance(path)) for path in paths]
 
 
@@ -293,13 +350,14 @@ def test_all_repository_instances_decode_to_valid_schedules(repository_instances
         try:
             validate_schedule(instance, schedule)
         except ValueError as error:
-            pytest.fail(f"{path.name}, seed {seed}: {error}")
+            pytest.fail(f"{path}, seed {seed}: {error}")
         assert schedule.total_workload == sum(op.duration for op in schedule.operations), path.name
         assert schedule.makespan == max(op.end for op in schedule.operations), path.name
+        assert schedule.objectives == (schedule.makespan, schedule.twt)
 
 
-def test_repository_zero_processing_times_are_preserved(repository_instances):
-    orb7 = [instance for path, instance in repository_instances if path.name == "orb7.txt"]
-    assert len(orb7) == 4
-    for instance in orb7:
-        assert any(option.duration == 0 for job in instance.jobs for op in job for option in op)
+def test_main_instances_carry_release_due_and_weight(repository_instances):
+    for path, instance in repository_instances:
+        assert all(r == 0 for r in instance.release_dates), path
+        assert all(d > 0 for d in instance.due_dates), path
+        assert all(w in (1, 2, 4) for w in instance.weights), path

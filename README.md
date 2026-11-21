@@ -1,8 +1,8 @@
-# MOEA/D cho FJSP
+﻿# MOEA/D cho FJSP
 
-Project giải FJSP tĩnh với minimize cả ba mục tiêu: makespan, tổng thời gian
-gia công và tải gia công lớn nhất trên một máy. Baseline dùng MOEA/D cơ bản,
-pp phân rã Tchebycheff, khởi tạo ngẫu nhiên và toán tử OS/MS có xác suất cố định.
+Project giải FJSP có hạn chót với minimize hai mục tiêu: makespan và tổng độ
+trễ có trọng số (TWT). Baseline dùng MOEA/D cơ bản, phân rã Tchebycheff, khởi
+tạo ngẫu nhiên và toán tử OS/MS có xác suất cố định.
 
 Tài liệu cần đọc:
 
@@ -13,6 +13,8 @@ Giới thiệu bài toán và cấu hình **[FJSP.md](docs/FJSP.md)**
 Thực nghiệm: **[EXPERIMENTS.md](docs/EXPERIMENTS.md)**.
 
 Dữ liệu: **[BENCHMARKS.md](docs/BENCHMARKS.md)**.
+
+Đánh giá mục tiêu: **[EVALUATE.md](docs/EVALUATE.md)**.
 ## 1. Cài đặt
 
 Mở PowerShell tại thư mục gốc project. Cần tối thiểu Python 3.11 để dùng bộ dependency hiện tại.
@@ -33,21 +35,26 @@ Cài editable để chương trình dùng mã trong `vendor/`, giữ dependency 
 Chọn data và địa chỉ lưu gene/lịch, thay đổi các args khác nếu cần:
 
 ```powershell
-./.venv/Scripts/python.exe scripts/run_fjsp.py --instance instance/Brandimarte1993/mk01.txt --seed 1 --evaluations 1000 --output results/mk01_seed1.json
+./.venv/Scripts/python.exe scripts/run_fjsp.py --instance "instance/main/Brandimate1993/Loose/Mk01/Mk01.fjs" --seed 1 --evaluations 1000 --output results/mk01_seed1.json
 ```
 
 File output phải chưa tồn tại. Cách chạy nhiều seed, tiếp tục khi gián đoạn và
 đọc kết quả nằm trong [EXPERIMENTS.md](docs/EXPERIMENTS.md).
-
 
 Ví dụ luồng chạy và tham số mặc định:
 ```powershell
 ./.venv/Scripts/python.exe scripts/run_fjsp.py
 ```
 
-Mặc định: `fattahi1`, seed 1, 91 nghiệm, 10 láng giềng, 1.000 NFE,
-`pc=0.8`, `pm=0.05`. Output cần báo `actual_evaluations: 1000` và
-`all_schedules_valid: true`, pareto front của ví dụ này là `(66,127,66)` và `(91,115,91)`.
+Mặc định: Brandimate Loose `Mk01`, seed 1, 13 nghiệm (`H=12`), 10 láng giềng,
+1.000 NFE, `pc=0.8`, `pm=0.05`. Output cần báo `actual_evaluations: 1000`,
+`objective_names: ["makespan", "twt"]` và `all_schedules_valid: true`.
+
+Chạy batch mặc định cả 2 bộ data (84 instance × 10 seed):
+
+```powershell
+./.venv/Scripts/python.exe scripts/run_baseline_validation.py --output-dir results/baseline_main
+```
 
 ## 3. Kiểm tra
 Nên chạy test luồng sau khi thay đổi module và trước khi thực nghiệm để kiểm tra tính đúng/xung đột của chương trình.
@@ -71,8 +78,8 @@ vendor/moead_framework/
   tool/            # Pareto, seed, HV và thu thập thực nghiệm
   test/            # Test component, FJSP và thực nghiệm
 scripts/           # Entry point chạy và scripts/configs/ chứa protocol JSON
-instance/          # 400 instance FJSP
-docs/              # Mô hình, hướng dẫn mở rộng, thực nghiệm và tra cứu
+instance/main/  # 84 file .fjs Brandimate + Dauzere (Loose/Moderate/Tight)
+docs/                 # Mô hình, hướng dẫn mở rộng, thực nghiệm và tra cứu
 ```
 
 Sửa mã trong `vendor/` và đặt test trong `vendor/moead_framework/test/`.

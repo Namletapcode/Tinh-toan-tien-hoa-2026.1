@@ -31,6 +31,9 @@ class MachineOption:
 class FJSPInstance:
     machine_count: int
     jobs: tuple[tuple[tuple[MachineOption, ...], ...], ...]
+    release_dates: tuple[int, ...]
+    due_dates: tuple[int, ...]
+    weights: tuple[int, ...]
     name: str = "<memory>"
     metadata: float | None = None
 
@@ -52,10 +55,22 @@ class FJSPInstance:
                     raise ValueError(f"Job {j}, operation {o} has an out-of-range machine")
                 if len(set(machines)) != len(machines):
                     raise ValueError(f"Job {j}, operation {o} repeats an eligible machine")
+        release_dates = tuple(_integer(v, "Release date") for v in self.release_dates)
+        due_dates = tuple(_integer(v, "Due date") for v in self.due_dates)
+        weights = tuple(_integer(v, "Job weight") for v in self.weights)
+        if not (len(release_dates) == len(due_dates) == len(weights) == len(jobs)):
+            raise ValueError("Release dates, due dates and weights must match the job count")
+        if any(value < 0 for value in release_dates):
+            raise ValueError("Release dates must be nonnegative")
+        if any(value <= 0 for value in weights):
+            raise ValueError("Job weights must be positive")
         if self.metadata is not None and not isfinite(self.metadata):
             raise ValueError("Instance metadata must be finite")
         object.__setattr__(self, "machine_count", count)
         object.__setattr__(self, "jobs", jobs)
+        object.__setattr__(self, "release_dates", release_dates)
+        object.__setattr__(self, "due_dates", due_dates)
+        object.__setattr__(self, "weights", weights)
 
     @property
     def job_count(self) -> int:
@@ -83,6 +98,7 @@ class FJSPInstance:
 def parse_instance(text: str, name: str = "<memory>") -> FJSPInstance:
     """Read n_jobs n_machines [metadata], followed by one nonblank line per job.
 
+    Each job line ends with release date, due date and weight (r_j d_j w_j).
     Machine IDs in the file are one-based. Alternative order is preserved, so
     MS choice k consistently means the kth listed alternative for that operation.
     """
@@ -103,6 +119,9 @@ def parse_instance(text: str, name: str = "<memory>") -> FJSPInstance:
         raise ValueError(f"{name}: expected {job_count} job lines, found {len(lines) - 1}")
 
     jobs = []
+    release_dates = []
+    due_dates = []
+    weights = []
     for j, (line_number, tokens) in enumerate(lines[1:]):
         context = f"{name}:{line_number}: job {j}"
         try:
@@ -131,10 +150,21 @@ def parse_instance(text: str, name: str = "<memory>") -> FJSPInstance:
             if len({option.machine for option in options}) != len(options):
                 raise ValueError(f"{context}: duplicate machine in operation {o}")
             operations.append(tuple(options))
-        if cursor != len(values):
-            raise ValueError(f"{context}: unexpected trailing operation data")
+        if cursor + 3 != len(values):
+            raise ValueError(f"{context}: expected trailing release date, due date and weight")
+        release, due, weight = values[cursor:cursor + 3]
+        if release < 0:
+            raise ValueError(f"{context}: release date must be nonnegative")
+        if weight <= 0:
+            raise ValueError(f"{context}: job weight must be positive")
         jobs.append(tuple(operations))
-    return FJSPInstance(machine_count, tuple(jobs), name=name, metadata=metadata)
+        release_dates.append(release)
+        due_dates.append(due)
+        weights.append(weight)
+    return FJSPInstance(
+        machine_count, tuple(jobs), tuple(release_dates), tuple(due_dates), tuple(weights),
+        name=name, metadata=metadata,
+    )
 
 
 def load_instance(path: str | Path) -> FJSPInstance:

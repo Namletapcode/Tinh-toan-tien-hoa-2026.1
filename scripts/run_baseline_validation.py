@@ -12,7 +12,7 @@ import re
 
 import numpy as np
 
-from moead_framework.algorithm.fjsp import uniform_weights_3d
+from moead_framework.algorithm.fjsp import uniform_weights_2d
 from moead_framework.core.genetic_operator.fjsp import FJSPOperatorConfig
 from moead_framework.problem.fjsp import parse_instance
 from moead_framework.tool.fjsp_experiments import (
@@ -21,17 +21,65 @@ from moead_framework.tool.fjsp_experiments import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+MAIN_INSTANCE_ROOT = "instance/main"
+MAIN_FAMILIES = ("Brandimate1993", "DauzerePeresPaulli1994")
+DUE_DATE_LEVELS = ("Loose", "Moderate", "Tight")
+ALL_MAIN_SENTINEL = "all_main"
 
 
 def _integer(value):
     return isinstance(value, int) and not isinstance(value, bool)
 
 
+def discover_main_instances(root=ROOT):
+    """List every Brandimate/Dauzere .fjs under instance/main (84 files)."""
+    root = Path(root).resolve()
+    base = (root / MAIN_INSTANCE_ROOT).resolve()
+    if not base.is_dir():
+        raise ValueError(f"Missing main instance directory: {MAIN_INSTANCE_ROOT}")
+    due_rank = {name: index for index, name in enumerate(DUE_DATE_LEVELS)}
+    family_rank = {name: index for index, name in enumerate(MAIN_FAMILIES)}
+    entries = []
+    for path in sorted(base.rglob("*.fjs")):
+        relative = path.relative_to(root).as_posix()
+        parts = path.relative_to(base).parts
+        if len(parts) != 4:
+            raise ValueError(f"Unexpected instance path layout: {relative}")
+        family, due, folder, filename = parts
+        if family not in family_rank:
+            raise ValueError(f"Unsupported main-instance family in {relative}")
+        if due not in due_rank:
+            raise ValueError(f"Unsupported due-date level in {relative}")
+        if folder != path.stem or filename != f"{path.stem}.fjs":
+            raise ValueError(f"Instance file must be Name/Name.fjs: {relative}")
+        entries.append({
+            "id": f"{path.stem.lower()}_{due.lower()}",
+            "family": family,
+            "path": relative,
+            "_sort": (family_rank[family], due_rank[due], path.stem.lower()),
+        })
+    entries.sort(key=lambda entry: entry.pop("_sort"))
+    if len(entries) != 84:
+        raise ValueError(f"Expected 84 main instances, found {len(entries)}")
+    return entries
+
+
+def resolve_protocol_instances(protocol, root=ROOT, discover_all_main=False):
+    """Expand the all_main sentinel or --all-main-instances into concrete paths."""
+    resolved = dict(protocol)
+    instances = protocol.get("instances")
+    if discover_all_main or instances == ALL_MAIN_SENTINEL:
+        resolved["instances"] = discover_main_instances(root)
+    elif not isinstance(instances, list):
+        raise ValueError("Protocol instances must be a list or the 'all_main' sentinel")
+    return resolved
+
+
 def validate_protocol(protocol):
     if protocol.get("schema_version") != 1:
         raise ValueError("Unsupported protocol schema")
     settings = protocol["algorithm"]
-    population = len(uniform_weights_3d(settings["partitions"]))
+    population = len(uniform_weights_2d(settings["partitions"]))
     if not _integer(settings["evaluations"]) or settings["evaluations"] < population:
         raise ValueError("NFE must cover the initial population")
     if not _integer(settings["neighbors"]) or not 1 <= settings["neighbors"] <= population:
@@ -49,14 +97,19 @@ def validate_protocol(protocol):
             or checkpoints[0] != population or checkpoints[-1] != settings["evaluations"]):
         raise ValueError("Checkpoints must be ordered/distinct and include initialization and final NFE")
     reference = protocol["hv_reference"]
-    if len(reference) != 3 or any(not isinstance(v, (int, float)) or not isfinite(v) or v <= 1 for v in reference):
-        raise ValueError("HV reference needs three finite values greater than 1")
+    if len(reference) != 2 or any(not isinstance(v, (int, float)) or not isfinite(v) or v <= 1 for v in reference):
+        raise ValueError("HV reference needs two finite values greater than 1")
     instances = protocol["instances"]
+    if not isinstance(instances, list):
+        raise ValueError("Resolve protocol instances before validation")
     identifiers = [entry["id"] for entry in instances]
     if not identifiers or len(set(identifiers)) != len(identifiers):
         raise ValueError("Instance IDs must be distinct and nonempty")
     if any(re.fullmatch(r"[A-Za-z0-9_-]+", identifier) is None for identifier in identifiers):
         raise ValueError("Instance IDs may contain only letters, numbers, underscores and hyphens")
+    required = {"id", "family", "path"}
+    if any(not required.issubset(entry) for entry in instances):
+        raise ValueError("Each instance needs id, family and path")
 
 
 def runtime_fingerprint(root):
@@ -97,9 +150,12 @@ def plot_convergence(path, all_cases, seeds):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    columns = min(3, len(all_cases))
-    rows = (len(all_cases) + columns - 1) // columns
-    figure, axes = plt.subplots(rows, columns, figsize=(5 * columns, 3.5 * rows), squeeze=False)
+    count = len(all_cases)
+    columns = 6 if count > 12 else min(3, count)
+    rows = (count + columns - 1) // columns
+    width = 3.2 if count > 12 else 5
+    height = 2.4 if count > 12 else 3.5
+    figure, axes = plt.subplots(rows, columns, figsize=(width * columns, height * rows), squeeze=False)
     for axis, (identifier, cases) in zip(axes.flat, all_cases.items()):
         nfe = [point["nfe"] for point in cases[0]["snapshots"]]
         values = np.array([[point["hv"] for point in case["snapshots"]] for case in cases])
@@ -111,18 +167,21 @@ def plot_convergence(path, all_cases, seeds):
         axis.set(title=identifier, xlabel="NFE", ylabel="Normalized HV")
         axis.ticklabel_format(axis="y", style="plain", useOffset=False)
         axis.grid(alpha=0.22)
-    for axis in list(axes.flat)[len(all_cases):]:
+    for axis in list(axes.flat)[count:]:
         axis.set_visible(False)
     figure.suptitle(f"MOEA/D-FJSP baseline: mean HV +/- sample SD ({len(seeds)} seeds)")
     figure.tight_layout(rect=(0, 0, 1, 0.96))
-    figure.savefig(path, dpi=160)
+    figure.savefig(path, dpi=120 if count > 12 else 160)
     plt.close(figure)
 
 
-def run_study(config_path, output_dir, resume=False, make_plot=True, root=ROOT):
+def run_study(config_path, output_dir, resume=False, make_plot=True, root=ROOT,
+              discover_all_main=False):
     root, config_path, output_dir = Path(root).resolve(), Path(config_path).resolve(), Path(output_dir).resolve()
     protocol_bytes = config_path.read_bytes()
-    protocol = json.loads(protocol_bytes.decode("utf-8"))
+    protocol = resolve_protocol_instances(
+        json.loads(protocol_bytes.decode("utf-8")), root=root, discover_all_main=discover_all_main,
+    )
     validate_protocol(protocol)
     models, inputs, bounds = {}, {}, {}
     for entry in protocol["instances"]:
@@ -177,8 +236,7 @@ def run_study(config_path, output_dir, resume=False, make_plot=True, root=ROOT):
             rows.append({"instance": identifier, "family": entry["family"], "seed": seed,
                          "nfe": case["actual_evaluations"], "initial_hv": case["initial_hv"],
                          "final_hv": case["final_hv"], "hv_gain": case["hv_gain"],
-                         "makespan": case["min_objectives"][0], "workload": case["min_objectives"][1],
-                         "max_machine_workload": case["min_objectives"][2],
+                         "makespan": case["min_objectives"][0], "twt": case["min_objectives"][1],
                          "archive_size": case["archive_size"], "elapsed_seconds": case["elapsed_seconds"],
                          "valid": case["all_schedules_valid"] and case["archive_matches_history"] and case["hv_monotonic"]})
         all_cases[identifier] = cases
@@ -229,11 +287,20 @@ def run_study(config_path, output_dir, resume=False, make_plot=True, root=ROOT):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=ROOT / "scripts/configs/baseline_validation.json")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "results/baseline_step6")
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "results/baseline_main")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--no-plot", action="store_true")
+    parser.add_argument(
+        "--all-main-instances",
+        action="store_true",
+        help="Run every .fjs under instance/main (Brandimate + Dauzere, 84 files), "
+             "ignoring the instance list in --config",
+    )
     args = parser.parse_args()
-    run_study(args.config, args.output_dir, resume=args.resume, make_plot=not args.no_plot)
+    run_study(
+        args.config, args.output_dir, resume=args.resume, make_plot=not args.no_plot,
+        discover_all_main=args.all_main_instances,
+    )
 
 
 if __name__ == "__main__":

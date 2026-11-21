@@ -20,42 +20,50 @@ def digest(value):
 
 
 def objective_bounds(instance):
-    """Data-only lower bounds and the serial upper bound for this decoder.
+    """Data-only lower bounds and conservative upper bounds for Makespan and TWT.
 
-    The decoder never inserts voluntary idle time: its makespan is at most
-    the sum of selected durations, bounded by sum(max alternative duration).
-    These bounds do not use any observed optimization result.
+    The decoder never inserts voluntary idle time beyond release-date waits: its
+    makespan is at most the sum of selected durations after releases, bounded by
+    sum(max alternative duration) plus the latest release date. These bounds do
+    not use any observed optimization result.
     """
     minima = [[min(option.duration for option in op) for op in job] for job in instance.jobs]
-    total_min = sum(sum(job) for job in minima)
     serial_max = sum(max(option.duration for option in op) for job in instance.jobs for op in job)
-    average_load = (total_min + instance.machine_count - 1) // instance.machine_count
+    average_load = (sum(sum(job) for job in minima) + instance.machine_count - 1) // instance.machine_count
     forced_loads = [0] * instance.machine_count
-    possible_loads = [0] * instance.machine_count
     for job in instance.jobs:
         for options in job:
-            for option in options:
-                possible_loads[option.machine] += option.duration
             if len(options) == 1:
                 forced_loads[options[0].machine] += options[0].duration
-    lower = [max(max(map(sum, minima)), average_load, max(forced_loads)), total_min,
-             max(average_load, max(v for job in minima for v in job), max(forced_loads))]
-    upper = [serial_max, serial_max, max(possible_loads)]
+    latest_release = max(instance.release_dates, default=0)
+    makespan_lower = max(
+        max((release + sum(job) for release, job in zip(instance.release_dates, minima)), default=0),
+        average_load,
+        max(forced_loads, default=0),
+    )
+    makespan_upper = latest_release + serial_max
+    twt_lower = 0
+    twt_upper = sum(
+        weight * max(0, makespan_upper - due)
+        for due, weight in zip(instance.due_dates, instance.weights)
+    )
+    lower = [makespan_lower, twt_lower]
+    upper = [makespan_upper, twt_upper]
     return {"lower": lower, "upper": upper,
             "span": [max(hi - lo, 1) for lo, hi in zip(lower, upper)],
             "constant_objectives": [i for i, (lo, hi) in enumerate(zip(lower, upper)) if lo == hi]}
 
 
-def normalized_hypervolume(points, bounds, reference=(1.1, 1.1, 1.1)):
+def normalized_hypervolume(points, bounds, reference=(1.1, 1.1)):
     """Postprocessing only: fixed data bounds, no clipping, reference-box fraction."""
     values = np.asarray(points, dtype=float)
     if values.size == 0:
         return 0.0
     ref = np.asarray(reference, dtype=float)
-    if values.ndim != 2 or values.shape[1] != 3 or not np.isfinite(values).all():
-        raise ValueError("HV requires finite three-objective vectors")
-    if ref.shape != (3,) or not np.isfinite(ref).all() or (ref <= 1).any():
-        raise ValueError("Normalized HV reference must have three finite coordinates greater than 1")
+    if values.ndim != 2 or values.shape[1] != 2 or not np.isfinite(values).all():
+        raise ValueError("HV requires finite two-objective vectors")
+    if ref.shape != (2,) or not np.isfinite(ref).all() or (ref <= 1).any():
+        raise ValueError("Normalized HV reference must have two finite coordinates greater than 1")
     lower, upper = np.asarray(bounds["lower"]), np.asarray(bounds["upper"])
     if (values < lower - 1e-10).any() or (values > upper + 1e-10).any():
         raise ValueError("Objective vectors are outside the fixed instance bounds")
@@ -68,8 +76,8 @@ def independent_pareto_front(points):
     values = np.asarray(points, dtype=float)
     if values.size == 0:
         return set()
-    if values.ndim != 2 or values.shape[1] != 3 or not np.isfinite(values).all():
-        raise ValueError("Expected finite three-objective vectors")
+    if values.ndim != 2 or values.shape[1] != 2 or not np.isfinite(values).all():
+        raise ValueError("Expected finite two-objective vectors")
     values = np.unique(values, axis=0)
     kept = []
     for start in range(0, len(values), 128):
@@ -78,6 +86,32 @@ def independent_pareto_front(points):
         strictly_less = np.any(values[None, :, :] < block[:, None, :], axis=2)
         kept.extend(block[~np.any(less_equal & strictly_less, axis=1)])
     return {tuple(map(float, row)) for row in kept}
+
+
+def igd_plus(front, reference, bounds):
+    """IGD+ trên không gian đã chuẩn hóa bằng bounds['lower']/['span']."""
+    if not reference:
+        return 0.0
+    if not front:
+        raise ValueError("IGD+ requires a non-empty approximation front when reference is non-empty")
+    span = np.asarray(bounds["span"], dtype=float)
+    ref = (np.asarray(reference, dtype=float) - bounds["lower"]) / span
+    apx = (np.asarray(front, dtype=float) - bounds["lower"]) / span
+    diffs = np.maximum(apx[None, :, :] - ref[:, None, :], 0)
+    distances = np.sqrt((diffs ** 2).sum(axis=2))
+    return float(distances.min(axis=1).mean())
+
+
+def set_coverage(front_a, front_b):
+    """C(A,B): tỉ lệ điểm trong B bị chi phối yếu bởi ít nhất một điểm trong A."""
+    if not front_b:
+        return 0.0
+    if not front_a:
+        return 0.0
+    a = np.asarray(front_a, dtype=float)
+    b = np.asarray(front_b, dtype=float)
+    dominated = np.any(np.all(a[:, None, :] <= b[None, :, :], axis=2), axis=0)
+    return float(dominated.sum() / len(front_b))
 
 
 class _RecordingProblem(FJSPProblem):
@@ -91,7 +125,7 @@ class _RecordingProblem(FJSPProblem):
         return solution
 
 
-def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1.1, 1.1), known_front=None):
+def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1.1), known_front=None):
     """Run the unchanged step-5 pipeline, recording objectives without new NFE/RNG calls."""
     config = FJSPOperatorConfig(settings["crossover"], settings["mutation"])
     problem = _RecordingProblem(instance)
@@ -145,7 +179,7 @@ def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1
         "archive_size": len(archive), "objective_vectors": front, "snapshots": curve,
         "initial_hv": curve[0]["hv"], "final_hv": curve[-1]["hv"],
         "hv_gain": curve[-1]["hv"] - curve[0]["hv"],
-        "min_objectives": [min(row[i] for row in front) for i in range(3)],
+        "min_objectives": [min(row[i] for row in front) for i in range(2)],
         "all_schedules_valid": True, "archive_matches_history": True,
         "hv_monotonic": True, "evaluation_trace": problem.trace, "solutions": solutions,
         "known_front_covered": None if known_front is None else {tuple(p) for p in front} == {tuple(p) for p in known_front},
@@ -157,7 +191,7 @@ def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1
 def summarize_cases(identifier, family, cases, bounds):
     def stats(key):
         values = [case[key] for case in cases]
-        return mean(values), stdev(values) if len(values) > 1 else 0.0
+        return mean(values), stdev(values) if len(cases) > 1 else 0.0
 
     hv_mean, hv_std = stats("final_hv")
     time_mean, time_std = stats("elapsed_seconds")
@@ -170,8 +204,9 @@ def summarize_cases(identifier, family, cases, bounds):
         "makespan_best": min(c["min_objectives"][0] for c in cases),
         "makespan_mean": mean(c["min_objectives"][0] for c in cases),
         "makespan_std": stdev([c["min_objectives"][0] for c in cases]) if len(cases) > 1 else 0.0,
-        "workload_best": min(c["min_objectives"][1] for c in cases),
-        "max_machine_workload_best": min(c["min_objectives"][2] for c in cases),
+        "twt_best": min(c["min_objectives"][1] for c in cases),
+        "twt_mean": mean(c["min_objectives"][1] for c in cases),
+        "twt_std": stdev([c["min_objectives"][1] for c in cases]) if len(cases) > 1 else 0.0,
         "archive_size_mean": mean(c["archive_size"] for c in cases),
         "seconds_mean": time_mean, "seconds_std": time_std,
         "valid_runs": sum(c["all_schedules_valid"] and c["archive_matches_history"] and c["hv_monotonic"] for c in cases),

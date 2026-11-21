@@ -25,10 +25,16 @@ class ScheduledOperation:
 class Schedule:
     operations: tuple[ScheduledOperation, ...]  # OS dispatch order, not start-time order.
     machine_loads: tuple[int, ...]
+    completion_times: tuple[int, ...]
+    twt: int
 
     def __post_init__(self):
         object.__setattr__(self, "operations", tuple(self.operations))
         object.__setattr__(self, "machine_loads", tuple(self.machine_loads))
+        object.__setattr__(self, "completion_times", tuple(_integer(value, "Completion time") for value in self.completion_times))
+        object.__setattr__(self, "twt", _integer(self.twt, "TWT"))
+        if self.twt < 0:
+            raise ValueError("TWT must be nonnegative")
 
     @property
     def makespan(self) -> int:
@@ -43,8 +49,8 @@ class Schedule:
         return max(self.machine_loads, default=0)
 
     @property
-    def objectives(self) -> tuple[int, int, int]:
-        return self.makespan, self.total_workload, self.max_machine_workload
+    def objectives(self) -> tuple[int, int]:
+        return self.makespan, self.twt
 
 
 def _earliest_slot(busy: list[ScheduledOperation], ready: int, duration: int) -> tuple[int, int]:
@@ -59,13 +65,13 @@ def _earliest_slot(busy: list[ScheduledOperation], ready: int, duration: int) ->
 def decode(instance: FJSPInstance, chromosome: Chromosome) -> Schedule:
     """Decode OS/MS without changing its genes or any instance state.
 
-    Preemption, setup/transport times, release dates and machine downtime are
-    not part of this static FJSP model. Equality at interval endpoints is valid,
-    including zero-duration operations.
+    Preemption, setup/transport times and machine downtime are not part of this
+    static FJSP model. Job release dates are respected. Equality at interval
+    endpoints is valid, including zero-duration operations.
     """
     chromosome.validate(instance)
     next_operation = [0] * instance.job_count
-    job_ready = [0] * instance.job_count
+    job_ready = list(instance.release_dates)
     busy = [[] for _ in range(instance.machine_count)]
     loads = [0] * instance.machine_count
     scheduled = []
@@ -81,7 +87,12 @@ def decode(instance: FJSPInstance, chromosome: Chromosome) -> Schedule:
         loads[option.machine] += option.duration
         job_ready[job] = record.end
         next_operation[job] += 1
-    return Schedule(tuple(scheduled), tuple(loads))
+    completion_times = tuple(job_ready)
+    twt = sum(
+        weight * max(0, completion - due)
+        for completion, due, weight in zip(completion_times, instance.due_dates, instance.weights)
+    )
+    return Schedule(tuple(scheduled), tuple(loads), completion_times, twt)
 
 
 def validate_schedule(instance: FJSPInstance, schedule: Schedule) -> None:
@@ -90,11 +101,14 @@ def validate_schedule(instance: FJSPInstance, schedule: Schedule) -> None:
     Every operation must appear exactly once on an eligible machine, with its
     original processing time. Precedence and chronological machine intervals
     require previous.end <= next.start, also for zero-duration operations.
+    Release dates, recorded completion times and TWT must also match.
     """
     if len(schedule.operations) != instance.operation_count:
         raise ValueError("Schedule must contain every operation exactly once")
     if len(schedule.machine_loads) != instance.machine_count:
         raise ValueError("Machine-load vector has the wrong length")
+    if len(schedule.completion_times) != instance.job_count:
+        raise ValueError("Completion-time vector has the wrong length")
     records = {}
     busy = [[] for _ in range(instance.machine_count)]
     loads = [0] * instance.machine_count
@@ -111,6 +125,8 @@ def validate_schedule(instance: FJSPInstance, schedule: Schedule) -> None:
             raise ValueError("Scheduled machine is out of range")
         if record.start < 0 or record.end < record.start:
             raise ValueError("Schedule has invalid start/end times")
+        if record.operation == 0 and record.start < instance.release_dates[record.job]:
+            raise ValueError("Job starts before its release date")
         key = record.job, record.operation
         if key in records:
             raise ValueError("Schedule contains a duplicate operation")
@@ -137,3 +153,16 @@ def validate_schedule(instance: FJSPInstance, schedule: Schedule) -> None:
     recorded_loads = tuple(_integer(v, "Machine load") for v in schedule.machine_loads)
     if recorded_loads != tuple(loads):
         raise ValueError("Recorded machine loads disagree with the scheduled operations")
+    expected_completion = tuple(
+        records[job, len(operations) - 1].end for job, operations in enumerate(instance.jobs)
+    )
+    if schedule.completion_times != expected_completion:
+        raise ValueError("Recorded completion times disagree with the scheduled operations")
+    expected_twt = sum(
+        weight * max(0, completion - due)
+        for completion, due, weight in zip(
+            expected_completion, instance.due_dates, instance.weights
+        )
+    )
+    if schedule.twt != expected_twt:
+        raise ValueError("Recorded TWT disagrees with completion times and due dates")

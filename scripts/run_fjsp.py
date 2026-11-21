@@ -1,4 +1,4 @@
-"""Run the basic MOEA/D baseline on a three-objective FJSP instance."""
+"""Run the basic MOEA/D baseline on a bi-objective FJSP instance (Makespan, TWT)."""
 
 import argparse
 from dataclasses import asdict
@@ -17,10 +17,10 @@ def main():
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--instance", type=Path,
-                        default=root / "instance/FattahiMehrabadJolai2007/fattahi1.txt")
+                        default=root / "instance/main/Brandimate1993/Loose/Mk01/Mk01.fjs")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--evaluations", type=int, default=1000, help="Total NFE, including initialization")
-    parser.add_argument("--partitions", type=int, default=12, help="H; population size is (H+1)(H+2)/2")
+    parser.add_argument("--partitions", type=int, default=12, help="H; population size is H+1")
     parser.add_argument("--neighbors", type=int, default=10)
     parser.add_argument("--crossover", type=float, default=0.8)
     parser.add_argument("--mutation", type=float, default=0.05)
@@ -54,8 +54,8 @@ def main():
         "algorithm": "Moead",
         "aggregation": "Tchebycheff",
         "seed": args.seed,
-        "objective_names": ["makespan", "total_workload", "max_machine_workload"],
-        "directions": ["minimize"] * 3,
+        "objective_names": ["makespan", "twt"],
+        "directions": ["minimize"] * 2,
         "partitions": args.partitions,
         "population_size": algorithm.number_of_weight,
         "neighbors": args.neighbors,

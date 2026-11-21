@@ -17,12 +17,12 @@ class FJSPProblem(Problem):
     dtype = int
 
     def __init__(self, instance):
-        super().__init__(objective_number=3)
+        super().__init__(objective_number=2)
         self.instance = instance if isinstance(instance, FJSPInstance) else load_instance(instance)
         self.evaluation_count = 0
 
     def evaluate(self, x):
-        """Decode once, obtain all three objectives and retain the immutable schedule.
+        """Decode once, obtain Makespan and TWT and retain the immutable schedule.
 
         Invalid genes are rejected rather than rounded or silently repaired.
         Re-evaluation always decodes again; it never trusts an old schedule cache.
@@ -39,9 +39,9 @@ class FJSPProblem(Problem):
         return solution
 
     def f(self, function_id, decision_vector):
-        """Compatibility accessor; normal MOEA/D calls evaluate(), not f() three times."""
-        if isinstance(function_id, bool) or not isinstance(function_id, Integral) or not 0 <= function_id < 3:
-            raise ValueError("FJSP objective index must be 0, 1 or 2")
+        """Compatibility accessor; normal MOEA/D calls evaluate(), not f() twice."""
+        if isinstance(function_id, bool) or not isinstance(function_id, Integral) or not 0 <= function_id < 2:
+            raise ValueError("FJSP objective index must be 0 or 1")
         return self.evaluate(decision_vector).F[function_id]
 
     def generate_random_solution(self):

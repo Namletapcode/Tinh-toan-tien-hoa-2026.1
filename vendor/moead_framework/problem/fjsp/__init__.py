@@ -1,4 +1,4 @@
-"""FJSP data, OS/MS decoding and the three-objective framework adapter."""
+"""FJSP data, OS/MS decoding and the bi-objective (Makespan, TWT) adapter."""
 
 from .instance import FJSPInstance, MachineOption, load_instance, parse_instance
 from .encoding import Chromosome, random_chromosome

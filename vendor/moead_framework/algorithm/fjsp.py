@@ -13,13 +13,12 @@ from moead_framework.core.offspring_generator.fjsp import FJSPOffspringGenerator
 from moead_framework.problem.fjsp import FJSPProblem
 
 
-def uniform_weights_3d(partitions):
-    """Integer simplex lattice: N=(H+1)(H+2)/2, including the three axes."""
+def uniform_weights_2d(partitions):
+    """Integer simplex lattice on 2 objectives: N=H+1, including both axes."""
     if isinstance(partitions, bool) or not isinstance(partitions, Integral) or partitions < 1:
         raise ValueError("partitions must be a positive integer")
     h = int(partitions)
-    return tuple((i / h, j / h, (h - i - j) / h)
-                 for i in range(h + 1) for j in range(h - i + 1))
+    return tuple((i / h, 1 - i / h) for i in range(h + 1))
 
 
 def create_fjsp_moead(problem, max_evaluation=1000, number_of_weight_neighborhood=10,
@@ -37,7 +36,7 @@ def create_fjsp_moead(problem, max_evaluation=1000, number_of_weight_neighborhoo
     config = FJSPOperatorConfig() if operator_config is None else operator_config
     if not isinstance(config, FJSPOperatorConfig):
         raise TypeError("operator_config must be FJSPOperatorConfig")
-    weights = uniform_weights_3d(partitions)
+    weights = uniform_weights_2d(partitions)
     with TemporaryDirectory(prefix="moead-fjsp-") as directory:
         path = Path(directory) / "weights.ws"
         path.write_text("\n".join(" ".join(map(str, row)) for row in weights) + "\n", encoding="utf-8")
