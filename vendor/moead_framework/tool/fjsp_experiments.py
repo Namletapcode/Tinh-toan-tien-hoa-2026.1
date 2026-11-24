@@ -8,8 +8,9 @@ from time import perf_counter
 
 import numpy as np
 
-from moead_framework.algorithm.fjsp import create_fjsp_moead
-from moead_framework.core.genetic_operator.fjsp import FJSPOperatorConfig
+from moead_framework.algorithm.fjsp_variants import (
+    create_fjsp_variant, population_layout, population_solutions,
+)
 from moead_framework.problem.fjsp import FJSPProblem
 from moead_framework.tool.result import HyperVolume, set_seed
 
@@ -126,8 +127,12 @@ class _RecordingProblem(FJSPProblem):
 
 
 def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1.1), known_front=None):
-    """Run the unchanged step-5 pipeline, recording objectives without new NFE/RNG calls."""
-    config = FJSPOperatorConfig(settings["crossover"], settings["mutation"])
+    """Observe the selected variant without adding NFE or random draws."""
+    layout = population_layout(settings)
+    if (not checkpoints or sorted(set(checkpoints)) != list(checkpoints)
+            or checkpoints[0] < layout["initial_evaluations"]
+            or checkpoints[-1] != settings["evaluations"]):
+        raise ValueError("Checkpoints must be ordered, after initialization, and end at the budget")
     problem = _RecordingProblem(instance)
     bounds = objective_bounds(instance)
     snapshots = {}
@@ -140,11 +145,7 @@ def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1
 
     set_seed(seed)
     started = perf_counter()
-    algorithm = create_fjsp_moead(
-        problem, max_evaluation=settings["evaluations"],
-        number_of_weight_neighborhood=settings["neighbors"],
-        partitions=settings["partitions"], operator_config=config,
-    )
+    algorithm = create_fjsp_variant(problem, settings)
     observe(algorithm)
     archive = sorted(algorithm.run(checkpoint=observe), key=lambda solution: tuple(solution.F))
     observe(algorithm)
@@ -155,7 +156,7 @@ def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1
         raise AssertionError("NFE counters and actual evaluation trace do not match the protocol")
     if set(snapshots) != wanted:
         raise AssertionError("Not all requested NFE checkpoints were recorded")
-    for solution in archive + algorithm.population:
+    for solution in archive + population_solutions(algorithm) + algorithm.population:
         problem.validate_solution(solution)
 
     curve = []
@@ -175,7 +176,7 @@ def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1
                  for solution in archive]
     result = {
         "seed": seed, "evaluations": budget, "actual_evaluations": problem.evaluation_count,
-        "population_size": algorithm.number_of_weight, "elapsed_seconds": elapsed,
+        **layout, "algorithm": type(algorithm).__name__, "elapsed_seconds": elapsed,
         "archive_size": len(archive), "objective_vectors": front, "snapshots": curve,
         "initial_hv": curve[0]["hv"], "final_hv": curve[-1]["hv"],
         "hv_gain": curve[-1]["hv"] - curve[0]["hv"],
@@ -184,7 +185,16 @@ def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1
         "hv_monotonic": True, "evaluation_trace": problem.trace, "solutions": solutions,
         "known_front_covered": None if known_front is None else {tuple(p) for p in front} == {tuple(p) for p in known_front},
     }
-    result["reproducibility_signature"] = digest({"trace": problem.trace, "solutions": solutions, "snapshots": curve})
+    signature_data = {"trace": problem.trace, "solutions": solutions, "snapshots": curve}
+    if layout["variant"] != "baseline":
+        result["micro_populations"] = [
+            [{"objectives": resident.F, "decision_vector": resident.decision_vector.tolist()}
+             for resident in group] for group in algorithm.micro_populations
+        ]
+        result["parent_selection_counts"] = dict(algorithm.parent_selector.selection_counts)
+        signature_data.update(micro_populations=result["micro_populations"],
+                              parent_selection_counts=result["parent_selection_counts"])
+    result["reproducibility_signature"] = digest(signature_data)
     return result
 
 
@@ -197,6 +207,8 @@ def summarize_cases(identifier, family, cases, bounds):
     time_mean, time_std = stats("elapsed_seconds")
     result = {
         "instance": identifier, "family": family, "runs": len(cases),
+        **{key: cases[0][key] for key in ("variant", "number_of_subproblems",
+                                        "micro_population_size", "population_size", "initial_evaluations")},
         "initial_hv_mean": mean(c["initial_hv"] for c in cases),
         "hv_mean": hv_mean, "hv_std": hv_std,
         "hv_gain_mean": mean(c["hv_gain"] for c in cases),
