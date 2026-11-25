@@ -9,6 +9,12 @@ from time import perf_counter
 import numpy as np
 
 from moead_framework.algorithm.fjsp import create_fjsp_moead
+from moead_framework.algorithm.fjsp_qinit import (
+    INITIALIZER_MODES,
+    build_initializer,
+    create_fjsp_qinit_moead,
+    parse_q_init_config,
+)
 from moead_framework.core.genetic_operator.fjsp import FJSPOperatorConfig
 from moead_framework.problem.fjsp import FJSPProblem
 from moead_framework.tool.result import HyperVolume, set_seed
@@ -138,13 +144,26 @@ def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1
         if nfe in wanted and nfe not in snapshots:
             snapshots[nfe] = [list(solution.F) for solution in algorithm.ep]
 
+    initializer_mode = settings.get("initializer", "baseline")
+    if initializer_mode not in INITIALIZER_MODES:
+        raise ValueError(f"Unsupported initializer mode: {initializer_mode!r}")
+    q_config = parse_q_init_config(settings.get("q_init")) if initializer_mode != "baseline" else None
+
     set_seed(seed)
     started = perf_counter()
-    algorithm = create_fjsp_moead(
-        problem, max_evaluation=settings["evaluations"],
-        number_of_weight_neighborhood=settings["neighbors"],
-        partitions=settings["partitions"], operator_config=config,
-    )
+    if initializer_mode == "baseline":
+        algorithm = create_fjsp_moead(
+            problem, max_evaluation=settings["evaluations"],
+            number_of_weight_neighborhood=settings["neighbors"],
+            partitions=settings["partitions"], operator_config=config,
+        )
+    else:
+        algorithm = create_fjsp_qinit_moead(
+            problem, max_evaluation=settings["evaluations"],
+            number_of_weight_neighborhood=settings["neighbors"],
+            partitions=settings["partitions"], operator_config=config,
+            initializer=build_initializer(initializer_mode, q_config=q_config),
+        )
     observe(algorithm)
     archive = sorted(algorithm.run(checkpoint=observe), key=lambda solution: tuple(solution.F))
     observe(algorithm)
