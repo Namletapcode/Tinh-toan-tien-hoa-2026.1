@@ -15,6 +15,7 @@ Thực nghiệm: **[EXPERIMENTS.md](docs/EXPERIMENTS.md)**.
 Dữ liệu: **[BENCHMARKS.md](docs/BENCHMARKS.md)**.
 
 Đánh giá mục tiêu: **[EVALUATE.md](docs/EVALUATE.md)**.
+
 ## 1. Cài đặt
 
 Mở PowerShell tại thư mục gốc project. Cần tối thiểu Python 3.11 để dùng bộ dependency hiện tại.
@@ -32,6 +33,7 @@ tiếp Python của môi trường, không cần activate.
 Cài editable để chương trình dùng mã trong `vendor/`, giữ dependency theo lock.
 
 ## 2. Triển khai
+
 Chọn data và địa chỉ lưu gene/lịch, thay đổi các args khác nếu cần:
 
 ```powershell
@@ -42,6 +44,7 @@ File output phải chưa tồn tại. Cách chạy nhiều seed, tiếp tục kh
 đọc kết quả nằm trong [EXPERIMENTS.md](docs/EXPERIMENTS.md).
 
 Ví dụ luồng chạy và tham số mặc định:
+
 ```powershell
 ./.venv/Scripts/python.exe scripts/run_fjsp.py
 ```
@@ -57,7 +60,9 @@ Chạy batch mặc định cả 2 bộ data (84 instance × 10 seed):
 ```
 
 ## 3. Kiểm tra
+
 Nên chạy test luồng sau khi thay đổi module và trước khi thực nghiệm để kiểm tra tính đúng/xung đột của chương trình.
+
 ```powershell
 ./.venv/Scripts/python.exe -m pytest vendor/moead_framework/test -q --tb=short
 ```
