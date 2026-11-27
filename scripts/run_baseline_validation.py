@@ -12,6 +12,8 @@ import re
 
 import numpy as np
 
+from moead_framework.algorithm.fjsp import uniform_weights_2d
+from moead_framework.algorithm.fjsp_qinit import INITIALIZER_MODES, parse_q_init_config
 from moead_framework.algorithm.fjsp_variants import population_layout
 from moead_framework.core.genetic_operator.fjsp import FJSPOperatorConfig
 from moead_framework.problem.fjsp import parse_instance
@@ -87,6 +89,11 @@ def validate_protocol(protocol):
     if not _integer(settings["neighbors"]) or not 1 <= settings["neighbors"] <= group_count:
         raise ValueError("Neighborhood must fit the population")
     FJSPOperatorConfig(settings["crossover"], settings["mutation"])
+    initializer_mode = settings.get("initializer", "baseline")
+    if initializer_mode not in INITIALIZER_MODES:
+        raise ValueError(f"initializer must be one of {INITIALIZER_MODES}")
+    if "q_init" in settings:
+        parse_q_init_config(settings["q_init"])
     seeds = protocol["seeds"]
     if (not seeds or len(set(seeds)) != len(seeds)
             or any(not _integer(seed) or not 0 <= seed < 2 ** 32 for seed in seeds)):
@@ -273,7 +280,10 @@ def run_study(config_path, output_dir, resume=False, make_plot=True, root=ROOT,
               "primary_nfe": sum(row["nfe"] for row in rows), "summaries": summaries,
               "replay_checks": replay_checks, "bounds": bounds, "hv_reference": protocol["hv_reference"]}
     write_json(output_dir / "summary.json", report)
-    markdown = ["# Kiem chung baseline MOEA/D-FJSP", "", f"{total} lan chay chinh; {len(replay_checks)} lan lap seed.", "",
+    initializer_mode = protocol["algorithm"].get("initializer", "baseline")
+    title = ("# Kiem chung baseline MOEA/D-FJSP" if initializer_mode == "baseline"
+             else f"# Kiem chung MOEA/D-FJSP (khoi tao: {initializer_mode})")
+    markdown = [title, "", f"{total} lan chay chinh; {len(replay_checks)} lan lap seed.", "",
                 "HV duoc chuan hoa bang can input co dinh, chia the tich hop tham chieu; chi so sanh trong cung instance.", "",
                 "| Instance | HV mean +/- SD | Mean HV gain | Best Cmax | Mean seconds | Valid |",
                 "| --- | ---: | ---: | ---: | ---: | ---: |"]

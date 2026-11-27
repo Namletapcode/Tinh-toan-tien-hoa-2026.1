@@ -15,6 +15,8 @@ Thực nghiệm: **[EXPERIMENTS.md](docs/EXPERIMENTS.md)**.
 Dữ liệu: **[BENCHMARKS.md](docs/BENCHMARKS.md)**.
 
 Đánh giá mục tiêu: **[EVALUATE.md](docs/EVALUATE.md)**.
+
+Khởi tạo bằng Q-learning: **[QINIT.md](docs/QINIT.md)**.
 ## 1. Cài đặt
 
 Mở PowerShell tại thư mục gốc project. Cần tối thiểu Python 3.11 để dùng bộ dependency hiện tại.

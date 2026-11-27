@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "study": "qinit_hybrid_main_validation",
+  "study_date": "2026-11-25",
+  "algorithm": {
+    "partitions": 12,
+    "neighbors": 10,
+    "evaluations": 1000,
+    "crossover": 0.8,
+    "mutation": 0.05,
+    "initializer": "hybrid_q_random",
+    "q_init": {
+      "alpha": 0.1,
+      "gamma": 0.95,
+      "epsilon_start": 0.5,
+      "epsilon_end": 0.05,
+      "random_ratio": 0.2,
+      "progress_bins": 4,
+      "weight_bins": 3,
+      "max_resample": 5
+    }
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "repeat_seed": 0,
+  "checkpoints": [
+    13,
+    250,
+    500,
+    1000
+  ],
+  "hv_reference": [
+    1.1,
+    1.1
+  ],
+  "instances": "all_main"
+}

@@ -1,4 +1,8 @@
-"""Run baseline, micro_random or micro_gwo on a Makespan/TWT FJSP instance."""
+"""Run MOEA/D on a bi-objective FJSP instance (Makespan, TWT).
+
+The default `--initializer baseline` runs the unchanged basic Moead; the other modes
+only replace population initialization (see docs/QINIT.md).
+"""
 
 import argparse
 from dataclasses import asdict
@@ -7,12 +11,30 @@ import json
 from pathlib import Path
 from time import perf_counter
 
+from moead_framework.algorithm.fjsp import create_fjsp_moead
+from moead_framework.algorithm.fjsp_qinit import (
+    INITIALIZER_MODES,
+    build_initializer,
+    create_fjsp_qinit_moead,
+    parse_q_init_config,
 from moead_framework.algorithm.fjsp_variants import (
     VARIANTS, create_fjsp_variant, population_layout, population_solutions,
 )
 from moead_framework.core.genetic_operator.fjsp import FJSPOperatorConfig
 from moead_framework.problem.fjsp import FJSPProblem
 from moead_framework.tool.result import set_seed
+
+
+Q_FLAGS = (
+    ("--q-alpha", "alpha", float),
+    ("--q-gamma", "gamma", float),
+    ("--q-epsilon-start", "epsilon_start", float),
+    ("--q-epsilon-end", "epsilon_end", float),
+    ("--q-random-ratio", "random_ratio", float),
+    ("--q-progress-bins", "progress_bins", int),
+    ("--q-weight-bins", "weight_bins", int),
+    ("--q-max-resample", "max_resample", int),
+)
 
 
 def main():
@@ -29,8 +51,16 @@ def main():
     parser.add_argument("--neighbors", type=int, default=10)
     parser.add_argument("--crossover", type=float, default=0.8)
     parser.add_argument("--mutation", type=float, default=0.05)
+    parser.add_argument("--initializer", choices=INITIALIZER_MODES, default="baseline",
+                        help="Population initialization strategy (baseline keeps original Moead)")
+    # Q-learning hyperparameters; omitted values keep the QInitConfig defaults.
+    for flag, field, kind in Q_FLAGS:
+        parser.add_argument(flag, dest=field, type=kind, default=None)
     parser.add_argument("--output", type=Path, help="Save full archive, genes and schedules as a new JSON file")
     args = parser.parse_args()
+    given_q_flags = [flag for flag, field, _ in Q_FLAGS if getattr(args, field) is not None]
+    if args.initializer == "baseline" and given_q_flags:
+        parser.error(f"{', '.join(given_q_flags)} require --initializer qlearning or hybrid_q_random")
     if args.output is not None and args.output.exists():
         parser.error("Output already exists; choose a new filename to preserve the previous run")
     try:
@@ -41,9 +71,26 @@ def main():
         layout = population_layout(settings)
         problem = FJSPProblem(args.instance)
         instance_hash = sha256(args.instance.read_bytes()).hexdigest()
+        q_config = None
+        if args.initializer != "baseline":
+            q_config = parse_q_init_config(
+                {field: getattr(args, field) for _, field, _ in Q_FLAGS if getattr(args, field) is not None}
+            )
         set_seed(args.seed)
         start = perf_counter()
-        algorithm = create_fjsp_variant(problem, settings)
+        if args.initializer == "baseline":
+            algorithm = create_fjsp_moead(
+                problem, max_evaluation=args.evaluations,
+                number_of_weight_neighborhood=args.neighbors,
+                partitions=args.partitions, operator_config=config,
+            )
+        else:
+            algorithm = create_fjsp_qinit_moead(
+                problem, max_evaluation=args.evaluations,
+                number_of_weight_neighborhood=args.neighbors,
+                partitions=args.partitions, operator_config=config,
+                initializer=build_initializer(args.initializer, q_config=q_config),
+            )
     except (OSError, ValueError, TypeError) as error:
         parser.error(str(error))
 
@@ -56,8 +103,7 @@ def main():
     summary = {
         "instance": problem.instance.name,
         "instance_sha256": instance_hash,
-        "algorithm": type(algorithm).__name__,
-        **layout,
+        "algorithm": "Moead" if args.initializer == "baseline" else type(algorithm).__name__,
         "aggregation": "Tchebycheff",
         "seed": args.seed,
         "objective_names": ["makespan", "twt"],
@@ -73,8 +119,10 @@ def main():
         "objective_vectors": [solution.F for solution in archive],
         "all_schedules_valid": True,
     }
-    if args.variant != "baseline":
-        summary["parent_selection_counts"] = dict(algorithm.parent_selector.selection_counts)
+    if args.initializer != "baseline":
+        summary["initializer"] = args.initializer
+        summary["initializer_stats"] = algorithm.initializer.last_stats
+        summary["q_init"] = asdict(q_config)
     if args.output is not None:
         export = {
             "schema_version": 1,
