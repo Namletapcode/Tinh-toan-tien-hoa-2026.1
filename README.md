@@ -90,3 +90,11 @@ Bảng điểm mở rộng, giao diện component và quy tắc NFE/archive nằ
 [protocol thực nghiệm](docs/EXPERIMENTS.md).
 
 `results/` tạm thời đang được đặt trong gitignore.
+
+## 5. Micropopulation và Grey Wolf
+
+Ba chế độ: `baseline` (mặc định), `micro_random` (đối chứng cùng số cá thể), `micro_gwo` (chọn cha mẹ theo Grey Wolf). Cách chạy, sơ đồ lớp và quy tắc nằm trong [MICRO_GWO](docs/MICRO_GWO.md).
+
+```powershell
+./.venv/Scripts/python.exe scripts/run_fjsp.py --variant micro_gwo --micro-population-size 4
+```

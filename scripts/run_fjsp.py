@@ -17,6 +17,8 @@ from moead_framework.algorithm.fjsp_qinit import (
     build_initializer,
     create_fjsp_qinit_moead,
     parse_q_init_config,
+from moead_framework.algorithm.fjsp_variants import (
+    VARIANTS, create_fjsp_variant, population_layout, population_solutions,
 )
 from moead_framework.core.genetic_operator.fjsp import FJSPOperatorConfig
 from moead_framework.problem.fjsp import FJSPProblem
@@ -42,7 +44,10 @@ def main():
                         default=root / "instance/main/Brandimate1993/Loose/Mk01/Mk01.fjs")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--evaluations", type=int, default=1000, help="Total NFE, including initialization")
-    parser.add_argument("--partitions", type=int, default=12, help="H; population size is H+1")
+    parser.add_argument("--variant", choices=VARIANTS, default="baseline")
+    parser.add_argument("--micro-population-size", type=int, default=4,
+                        help="Residents per group for micro variants (>=4); ignored by baseline")
+    parser.add_argument("--partitions", type=int, default=12, help="H; number of groups is H+1")
     parser.add_argument("--neighbors", type=int, default=10)
     parser.add_argument("--crossover", type=float, default=0.8)
     parser.add_argument("--mutation", type=float, default=0.05)
@@ -60,6 +65,10 @@ def main():
         parser.error("Output already exists; choose a new filename to preserve the previous run")
     try:
         config = FJSPOperatorConfig(args.crossover, args.mutation)
+        settings = dict(variant=args.variant, micro_population_size=args.micro_population_size,
+                        partitions=args.partitions, neighbors=args.neighbors, evaluations=args.evaluations,
+                        crossover=args.crossover, mutation=args.mutation)
+        layout = population_layout(settings)
         problem = FJSPProblem(args.instance)
         instance_hash = sha256(args.instance.read_bytes()).hexdigest()
         q_config = None
@@ -89,7 +98,7 @@ def main():
     elapsed = perf_counter() - start
     if algorithm.current_eval != problem.evaluation_count or problem.evaluation_count != args.evaluations:
         raise RuntimeError("Algorithm NFE, actual evaluations and requested budget disagree")
-    for solution in archive + algorithm.population:
+    for solution in archive + population_solutions(algorithm) + algorithm.population:
         problem.validate_solution(solution)
     summary = {
         "instance": problem.instance.name,
@@ -100,7 +109,6 @@ def main():
         "objective_names": ["makespan", "twt"],
         "directions": ["minimize"] * 2,
         "partitions": args.partitions,
-        "population_size": algorithm.number_of_weight,
         "neighbors": args.neighbors,
         **asdict(config),
         "requested_evaluations": args.evaluations,
@@ -128,6 +136,12 @@ def main():
                 "schedule": [asdict(operation) for operation in solution.schedule.operations],
             } for solution in archive],
         }
+        if args.variant != "baseline":
+            export["micro_populations"] = [
+                [{"objectives": resident.F,
+                  "decision_vector": resident.decision_vector.tolist()} for resident in group]
+                for group in algorithm.micro_populations
+            ]
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with args.output.open("x", encoding="utf-8") as file:
             json.dump(export, file, ensure_ascii=False, indent=2)

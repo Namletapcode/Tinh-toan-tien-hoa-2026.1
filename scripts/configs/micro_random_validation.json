@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "study": "micro_random_main_validation",
+  "study_date": "2026-11-23",
+  "algorithm": {
+    "partitions": 12,
+    "neighbors": 10,
+    "evaluations": 1000,
+    "crossover": 0.8,
+    "mutation": 0.05,
+    "variant": "micro_random",
+    "micro_population_size": 4
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "repeat_seed": 0,
+  "checkpoints": [
+    52,
+    250,
+    500,
+    1000
+  ],
+  "hv_reference": [
+    1.1,
+    1.1
+  ],
+  "instances": "all_main"
+}
