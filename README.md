@@ -96,3 +96,5 @@ Ba chế độ: `baseline` (mặc định), `micro_random` (đối chứng cùng
 ```powershell
 ./.venv/Scripts/python.exe scripts/run_fjsp.py --variant micro_gwo --micro-population-size 4
 ```
+
+Baseline cố định của sáu instance `Moderate` nằm trong [benchmark dùng chung](benchmarks/reference_baseline/moderate_six/README.md). Các file JSON gốc trong `runs/` phục vụ đối chiếu IGD+ và Coverage về sau.
