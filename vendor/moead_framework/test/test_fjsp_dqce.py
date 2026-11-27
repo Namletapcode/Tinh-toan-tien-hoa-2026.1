@@ -298,36 +298,45 @@ def test_dqce_cli_exports_replayable_solutions_and_validates_args(tmp_path):
     assert bad_cli.returncode == 2
 
 
-def test_evaluate_dqce_computes_hv_set_coverage_and_summary(tmp_path):
+def test_evaluate_dqce_computes_hv_and_matches_greywolf_defaults(tmp_path):
+    from importlib.util import module_from_spec, spec_from_file_location
+
+    spec = spec_from_file_location("evaluate_dqce_mod", ROOT / "scripts/evaluate_dqce.py")
+    mod = module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert len(mod.MODERATE_SIX_INSTANCES) == 6
+    assert mod.DEFAULT_SEEDS == list(range(10))
+
     out_dir = tmp_path / "eval_out"
     command = [
         sys.executable, str(ROOT / "scripts/evaluate_dqce.py"),
-        "--instance", str(DATA_MAIN / "Brandimate1993/Loose/Mk01/Mk01.fjs"),
+        "--instance",
+        str(DATA_MAIN / "Brandimate1993/Moderate/Mk01/Mk01.fjs"),
+        str(DATA_MAIN / "Brandimate1993/Moderate/Mk02/Mk02.fjs"),
         "--seeds", "0", "1",
         "--evaluations", "20", "--partitions", "4", "--neighbors", "3",
-        "--crossover", "1", "--mutation", "0.2",
         "--buffer-size", "4", "--batch-size", "2", "--target-update", "2",
         "--output-dir", str(out_dir),
     ]
     completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True)
     stdout_payload = json.loads(completed.stdout)
+    assert stdout_payload["algorithm_config"]["crossover_probability"] == 0.8
+    assert stdout_payload["algorithm_config"]["mutation_probability"] == 0.05
     assert (out_dir / "summary.json").is_file()
     assert (out_dir / "summary.csv").is_file()
     assert (out_dir / "summary.md").is_file()
     assert (out_dir / "per_seed.csv").is_file()
-    assert (out_dir / "runs/dqce_seed0.json").is_file()
-    assert (out_dir / "runs/baseline_seed1.json").is_file()
+    assert (out_dir / "runs/mk01_moderate_seed0.json").is_file()
+    assert (out_dir / "runs/mk02_moderate_seed1.json").is_file()
 
     summary = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["seeds"] == [0, 1]
-    assert len(summary["per_seed"]) == 2
-    metrics = summary["metrics"]
-    assert metrics == stdout_payload["metrics"]
-    for key in ("hv_dqce", "hv_baseline", "c_dqce_over_baseline_per_seed", "c_baseline_over_dqce_per_seed"):
-        assert 0.0 <= metrics[key]["mean"] <= 1.0
-        assert metrics[key]["std"] >= 0.0
-    assert 0.0 <= metrics["c_dqce_over_baseline_pooled"] <= 1.0
-    assert 0.0 <= metrics["c_baseline_over_dqce_pooled"] <= 1.0
+    assert len(summary["per_seed"]) == 4
+    assert len(summary["summaries"]) == 2
+    assert summary["summaries"] == stdout_payload["summaries"]
+    for item in summary["summaries"]:
+        assert 0.0 <= item["hv_mean"] <= 1.0
+        assert item["hv_std"] >= 0.0
 
     # Without --reuse, re-running on the same output-dir is refused.
     no_reuse = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
@@ -336,5 +345,5 @@ def test_evaluate_dqce_computes_hv_set_coverage_and_summary(tmp_path):
     # With --reuse, existing runs are reused and identical summary is produced.
     reused = subprocess.run(command + ["--reuse"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True)
     reused_payload = json.loads(reused.stdout)
-    assert reused_payload["metrics"]["hv_dqce"] == metrics["hv_dqce"]
+    assert reused_payload["summaries"] == summary["summaries"]
 
