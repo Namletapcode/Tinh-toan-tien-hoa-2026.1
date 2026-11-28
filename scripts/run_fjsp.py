@@ -17,6 +17,7 @@ from moead_framework.algorithm.fjsp_qinit import (
     build_initializer,
     create_fjsp_qinit_moead,
     parse_q_init_config,
+)
 from moead_framework.algorithm.fjsp_variants import (
     VARIANTS, create_fjsp_variant, population_layout, population_solutions,
 )
@@ -65,20 +66,22 @@ def main():
         parser.error("Output already exists; choose a new filename to preserve the previous run")
     try:
         config = FJSPOperatorConfig(args.crossover, args.mutation)
+        q_raw = {field: getattr(args, field) for _, field, _ in Q_FLAGS if getattr(args, field) is not None}
         settings = dict(variant=args.variant, micro_population_size=args.micro_population_size,
                         partitions=args.partitions, neighbors=args.neighbors, evaluations=args.evaluations,
-                        crossover=args.crossover, mutation=args.mutation)
+                        crossover=args.crossover, mutation=args.mutation, initializer=args.initializer)
+        q_config = None
+        if args.initializer != "baseline":
+            settings["q_init"] = q_raw
+            q_config = parse_q_init_config(q_raw)
         layout = population_layout(settings)
         problem = FJSPProblem(args.instance)
         instance_hash = sha256(args.instance.read_bytes()).hexdigest()
-        q_config = None
-        if args.initializer != "baseline":
-            q_config = parse_q_init_config(
-                {field: getattr(args, field) for _, field, _ in Q_FLAGS if getattr(args, field) is not None}
-            )
         set_seed(args.seed)
         start = perf_counter()
-        if args.initializer == "baseline":
+        if args.variant != "baseline":
+            algorithm = create_fjsp_variant(problem, settings)
+        elif args.initializer == "baseline":
             algorithm = create_fjsp_moead(
                 problem, max_evaluation=args.evaluations,
                 number_of_weight_neighborhood=args.neighbors,
@@ -103,7 +106,8 @@ def main():
     summary = {
         "instance": problem.instance.name,
         "instance_sha256": instance_hash,
-        "algorithm": "Moead" if args.initializer == "baseline" else type(algorithm).__name__,
+        "algorithm": "Moead" if args.variant == "baseline" and args.initializer == "baseline" else type(algorithm).__name__,
+        **layout,
         "aggregation": "Tchebycheff",
         "seed": args.seed,
         "objective_names": ["makespan", "twt"],

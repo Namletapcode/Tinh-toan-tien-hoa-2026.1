@@ -1,0 +1,37 @@
+{
+  "identity": {
+    "protocol_sha256": "df9a7926e4244221ed51d1aa0f6a923ae8ebdd912292706c3398f21ba405cbb5",
+    "code_sha256": "dd31c4a157950fee2c2bde5590f510030cb11863c92043bcdca2e87d0380db5f",
+    "inputs": {
+      "mk01_moderate": {
+        "path": "instance/main/Brandimate1993/Moderate/Mk01/Mk01.fjs",
+        "sha256": "836e7a916cf143bd1fdd488373424e2080e8a00ad421c49ae9ec30cacbd89b69"
+      },
+      "mk02_moderate": {
+        "path": "instance/main/Brandimate1993/Moderate/Mk02/Mk02.fjs",
+        "sha256": "4f554a02a866718314047b2c4c5a5bc548e43351506d1583a3169078b4f516f9"
+      },
+      "mk03_moderate": {
+        "path": "instance/main/Brandimate1993/Moderate/Mk03/Mk03.fjs",
+        "sha256": "2bb7a3efb4f6e122f009376318f84889b5384772e5c25c40faa9589609703dff"
+      },
+      "01a_moderate": {
+        "path": "instance/main/DauzerePeresPaulli1994/Moderate/01a/01a.fjs",
+        "sha256": "93c85c3883faa495d6e0d7b296b2e01804badc9cea27049ea61301eddf23fb54"
+      },
+      "02a_moderate": {
+        "path": "instance/main/DauzerePeresPaulli1994/Moderate/02a/02a.fjs",
+        "sha256": "95c805ae1f55f3b30ebc9a5dccac01ef76b6c03445c90c8f17fbe222d2fce703"
+      },
+      "03a_moderate": {
+        "path": "instance/main/DauzerePeresPaulli1994/Moderate/03a/03a.fjs",
+        "sha256": "eb53b2347069048ae9009f594dbd487c373075bf2d408c35aca2d9aff9d398ea"
+      }
+    },
+    "python": "3.11.9",
+    "numpy": "1.23.5"
+  },
+  "primary_runs": 60,
+  "replay_runs": 6,
+  "valid_runs": 60
+}

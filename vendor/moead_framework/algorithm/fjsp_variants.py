@@ -7,6 +7,9 @@ from tempfile import TemporaryDirectory
 
 from moead_framework.aggregation import Tchebycheff
 from moead_framework.algorithm.fjsp import create_fjsp_moead, uniform_weights_2d
+from moead_framework.algorithm.fjsp_qinit import (
+    INITIALIZER_MODES, build_initializer, parse_q_init_config,
+)
 from moead_framework.algorithm.moead_micro_gwo import MoeadMicroGWO
 from moead_framework.core.genetic_operator.fjsp import FJSPCrossoverAndMutation, FJSPOperatorConfig
 from moead_framework.core.offspring_generator.fjsp import FJSPOffspringGenerator
@@ -41,10 +44,19 @@ def create_fjsp_variant(problem, settings):
         raise ValueError("Use a fresh FJSPProblem for each run")
     kwargs = dict(problem=problem, max_evaluation=settings["evaluations"],
                   number_of_weight_neighborhood=settings["neighbors"])
+    initializer_mode = settings.get("initializer", "baseline")
+    if initializer_mode not in INITIALIZER_MODES:
+        raise ValueError(f"initializer must be one of {INITIALIZER_MODES}")
     if layout["variant"] == "baseline":
+        if initializer_mode != "baseline":
+            raise ValueError("variant 'baseline' with a Q-learning initializer is built by create_fjsp_qinit_moead")
         return create_fjsp_moead(
             **kwargs, partitions=settings["partitions"], operator_config=config,
         )
+    initializer = None
+    if initializer_mode != "baseline":
+        initializer = build_initializer(
+            initializer_mode, q_config=parse_q_init_config(settings.get("q_init")))
     weights = uniform_weights_2d(settings["partitions"])
     with TemporaryDirectory(prefix="moead-micro-") as directory:
         path = Path(directory) / "weights.ws"
@@ -54,6 +66,7 @@ def create_fjsp_variant(problem, settings):
             parent_selection="grey_wolf" if layout["variant"] == "micro_gwo" else "random",
             weight_file=str(path), aggregation_function=Tchebycheff,
             genetic_operator=FJSPCrossoverAndMutation, offspring_generator=FJSPOffspringGenerator,
+            initializer=initializer,
         )
     algorithm.offspring_generator.config = config
     return algorithm

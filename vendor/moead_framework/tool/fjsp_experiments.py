@@ -15,6 +15,9 @@ from moead_framework.algorithm.fjsp_qinit import (
     create_fjsp_qinit_moead,
     parse_q_init_config,
 )
+from moead_framework.algorithm.fjsp_variants import (
+    create_fjsp_variant, population_layout, population_solutions,
+)
 from moead_framework.core.genetic_operator.fjsp import FJSPOperatorConfig
 from moead_framework.problem.fjsp import FJSPProblem
 from moead_framework.tool.result import HyperVolume, set_seed
@@ -155,7 +158,11 @@ def run_validation_case(instance, settings, seed, checkpoints, reference=(1.1, 1
 
     set_seed(seed)
     started = perf_counter()
-    if initializer_mode == "baseline":
+    config = FJSPOperatorConfig(settings["crossover"], settings["mutation"])
+    variant = settings.get("variant", "baseline")
+    if variant != "baseline":
+        algorithm = create_fjsp_variant(problem, settings)
+    elif initializer_mode == "baseline":
         algorithm = create_fjsp_moead(
             problem, max_evaluation=settings["evaluations"],
             number_of_weight_neighborhood=settings["neighbors"],

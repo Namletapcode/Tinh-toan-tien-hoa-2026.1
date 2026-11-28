@@ -25,4 +25,4 @@ dist/
 /test_save_population_full.txt
 
 # Generated experiment artifacts (docs/archive/setup remains tracked).
-/results/
+paper/

@@ -10,11 +10,13 @@ from numbers import Integral
 import numpy as np
 
 from moead_framework.algorithm.moead import Moead
+from moead_framework.core.initializer import AbstractInitializer
 from moead_framework.core.parent_selector.micro_gwo_selector import MicroGWOParentSelector
 
 
 class MoeadMicroGWO(Moead):
-    def __init__(self, *, micro_population_size=4, parent_selection="grey_wolf", **kwargs):
+    def __init__(self, *, micro_population_size=4, parent_selection="grey_wolf",
+                 initializer=None, **kwargs):
         if (isinstance(micro_population_size, bool)
                 or not isinstance(micro_population_size, Integral)
                 or micro_population_size < 4):
@@ -23,8 +25,19 @@ class MoeadMicroGWO(Moead):
             raise ValueError("parent_selection must be 'random' or 'grey_wolf'")
         self.micro_population_size = int(micro_population_size)
         self.parent_selection = parent_selection
+        if initializer is not None and not isinstance(initializer, AbstractInitializer):
+            raise TypeError("The expected type of `initializer` is `AbstractInitializer` or None")
+        self.initializer = initializer
+        self._weight_order = None
         self.micro_populations = []
         super().__init__(parent_selector=MicroGWOParentSelector, **kwargs)
+        if initializer is not None and getattr(initializer, "weight_aware", False):
+            # random.shuffle moved the weight objects themselves; follow them by identity
+            # so group i keeps the residents that were built for its weight.
+            original_index = {id(weight): index for index, weight in enumerate(self._weight_order)}
+            self.micro_populations = [self.micro_populations[original_index[id(weight)]]
+                                      for weight in self.weights]
+        self._weight_order = None
         # AbstractMoead shuffles weights after initialization. Representatives
         # must be selected after that shuffle, with the final assigned weights.
         self.refresh_representatives()
@@ -47,16 +60,40 @@ class MoeadMicroGWO(Moead):
         # before consuming any evaluation. Check the larger budget here.
         if self.max_evaluation < self.initial_evaluations:
             raise ValueError("max_evaluation must cover all micro-population individuals")
-        for _ in range(self.number_of_weight):
-            group = []
-            for _ in range(self.micro_population_size):
-                solution = self.problem.generate_random_solution()
-                self.current_eval += 1
-                group.append(solution)
-                self.update_archive(solution)
-            self.micro_populations.append(group)
+        if self.initializer is None:
+            for _ in range(self.number_of_weight):
+                group = []
+                for _ in range(self.micro_population_size):
+                    solution = self.problem.generate_random_solution()
+                    self.current_eval += 1
+                    group.append(solution)
+                    self.update_archive(solution)
+                self.micro_populations.append(group)
+        else:
+            self._initialize_with_initializer()
         # These are only placeholders until weights and z are ready.
         return [deepcopy(group[0]) for group in self.micro_populations]
+
+    def _initialize_with_initializer(self):
+        """Fill every group via the initializer; weight w_i is repeated for group i's residents."""
+        k = self.micro_population_size
+        # Weights are still unshuffled here; remember their order to follow the shuffle later.
+        self._weight_order = list(self.weights)
+        expanded_weights = [tuple(float(v) for v in self.weights[i])
+                            for i in range(self.number_of_weight) for _ in range(k)]
+
+        def on_evaluated(solution):
+            self.current_eval += 1
+            self.update_archive(solution=solution)
+
+        flat = self.initializer.initialize(
+            problem=self.problem, population_size=self.initial_evaluations,
+            weights=expanded_weights, on_evaluated=on_evaluated,
+        )
+        if len(flat) != self.initial_evaluations:
+            raise RuntimeError(
+                f"Initializer returned {len(flat)} solutions; expected {self.initial_evaluations}")
+        self.micro_populations = [list(flat[i * k:(i + 1) * k]) for i in range(self.number_of_weight)]
 
     def init_z(self):
         # A nonrepresentative resident may contain the best value of an objective.

@@ -13,6 +13,11 @@ import pytest
 from moead_framework.algorithm.fjsp_variants import (
     create_fjsp_variant, population_layout, population_solutions,
 )
+from moead_framework.aggregation import Tchebycheff
+from moead_framework.algorithm.moead_micro_gwo import MoeadMicroGWO
+from moead_framework.core.genetic_operator.fjsp import FJSPCrossoverAndMutation
+from moead_framework.core.initializer import AbstractInitializer
+from moead_framework.core.offspring_generator.fjsp import FJSPOffspringGenerator
 from moead_framework.problem.fjsp import FJSPProblem, decode, parse_instance, Chromosome
 from moead_framework.solution import OneDimensionSolution
 from moead_framework.tool.fjsp_experiments import independent_pareto_front, run_validation_case
@@ -271,3 +276,109 @@ def test_cli_exports_micro_groups_and_refuses_overwrite(tmp_path, variant):
             assert list(decode(instance, chromosome).objectives) == resident["objectives"]
     assert subprocess.run(command, cwd=ROOT, capture_output=True).returncode == 2
     assert output.read_bytes() == saved
+
+
+class RecordingInitializer(AbstractInitializer):
+    """Weight-aware stub: resident i is random but tagged with weights[i]."""
+    weight_aware = True
+
+    def __init__(self):
+        self.tags = {}
+        self.last_stats = {}
+
+    def initialize(self, problem, population_size, weights, on_evaluated):
+        population = []
+        for weight in weights[:population_size]:
+            solution = problem.generate_random_solution()
+            on_evaluated(solution)
+            self.tags[id(solution)] = tuple(weight)
+            population.append(solution)
+        return population
+
+
+@pytest.mark.parametrize("variant", ["micro_gwo", "micro_random"])
+@pytest.mark.parametrize("mode", ["qlearning", "hybrid_q_random"])
+def test_micro_with_qinit_respects_nfe_budget_and_archive(variant, mode):
+    set_seed(7)
+    problem = RecordingProblem(parse_instance(TEXT))
+    config = settings(variant, budget=12 + 10)
+    config["initializer"] = mode
+    algorithm = create_fjsp_variant(problem, config)
+    assert algorithm.current_eval == problem.evaluation_count == 12
+    assert algorithm.initializer.last_stats["population_size"] == 12
+    assert [len(group) for group in algorithm.micro_populations] == [4, 4, 4]
+    archive = algorithm.run()
+    assert algorithm.current_eval == problem.evaluation_count == len(problem.seen) == 22
+    assert {tuple(s.F) for s in archive} == independent_pareto_front([s.F for s in problem.seen])
+    for solution in archive + population_solutions(algorithm) + algorithm.population:
+        problem.validate_solution(solution)
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2, 3])
+def test_micro_weight_aware_initializer_follows_group_shuffle(seed):
+    set_seed(seed)
+    problem = FJSPProblem(parse_instance(TEXT))
+    initializer = RecordingInitializer()
+    algorithm = MoeadMicroGWO(
+        problem=problem, max_evaluation=20, number_of_weight_neighborhood=3,
+        micro_population_size=4, weight_file=_weight_file(),
+        aggregation_function=Tchebycheff, genetic_operator=FJSPCrossoverAndMutation,
+        offspring_generator=FJSPOffspringGenerator, initializer=initializer,
+    )
+    assert len(initializer.tags) == 12
+    for index, group in enumerate(algorithm.micro_populations):
+        expected = tuple(float(v) for v in algorithm.weights[index])
+        assert len(group) == 4
+        assert all(initializer.tags[id(resident)] == expected for resident in group)
+
+
+def _weight_file():
+    from moead_framework.algorithm.fjsp import uniform_weights_2d
+    import tempfile
+    handle = tempfile.NamedTemporaryFile("w", suffix=".ws", delete=False, encoding="utf-8")
+    handle.write("\n".join(" ".join(map(str, row)) for row in uniform_weights_2d(2)))
+    handle.close()
+    return handle.name
+
+
+def test_micro_rejects_invalid_initializer_without_spending_nfe():
+    problem = FJSPProblem(parse_instance(TEXT))
+    config = settings()
+    config["initializer"] = "unknown"
+    with pytest.raises(ValueError):
+        create_fjsp_variant(problem, config)
+    assert problem.evaluation_count == 0
+
+
+def test_baseline_variant_with_initializer_is_rejected_by_variant_factory():
+    problem = FJSPProblem(parse_instance(TEXT))
+    config = settings("baseline")
+    config["initializer"] = "hybrid_q_random"
+    with pytest.raises(ValueError):
+        create_fjsp_variant(problem, config)
+
+
+@pytest.mark.parametrize("variant", ["micro_gwo", "micro_random"])
+def test_micro_with_qinit_is_reproducible(variant):
+    config = settings(variant, 22)
+    config["initializer"] = "hybrid_q_random"
+    first = run_validation_case(parse_instance(TEXT), config, 2, [12, 22])
+    second = run_validation_case(parse_instance(TEXT), config, 2, [12, 22])
+    assert first["reproducibility_signature"] == second["reproducibility_signature"]
+    assert first["algorithm"] == "MoeadMicroGWO" and first["population_size"] == 12
+
+
+@pytest.mark.parametrize("mode", ["qlearning", "hybrid_q_random"])
+def test_cli_micro_gwo_with_qinit(tmp_path, mode):
+    output = tmp_path / "demo.json"
+    command = [sys.executable, str(ROOT / "scripts/run_fjsp.py"), "--variant", "micro_gwo",
+               "--partitions", "2", "--neighbors", "3", "--evaluations", "62",
+               "--initializer", mode, "--output", str(output)]
+    completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=True)
+    summary = json.loads(completed.stdout)
+    assert summary["population_size"] == 12 and summary["actual_evaluations"] == 62
+    assert summary["algorithm"] == "MoeadMicroGWO" and summary["initializer"] == mode
+    stats = summary["initializer_stats"]
+    assert stats["n_random"] + stats["n_qlearning"] == 12
+    assert "q_init" in summary
+    assert [len(g) for g in json.loads(output.read_text(encoding="utf-8"))["micro_populations"]] == [4, 4, 4]
