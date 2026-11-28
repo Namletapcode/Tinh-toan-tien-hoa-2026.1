@@ -1,6 +1,7 @@
 from typing import List
 import random
 import numpy as np
+import torch
 
 from moead_framework.algorithm import AbstractMoead
 from moead_framework.solution.base import Solution
@@ -80,6 +81,7 @@ def set_seed(seed):
     """
     random.seed(seed)
     np.random.seed(seed)
+    torch.manual_seed(seed)
 
 
 def checkpoint(moead_algorithm: AbstractMoead):
