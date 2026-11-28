@@ -1,0 +1,283 @@
+{
+  "identity": {
+    "protocol_sha256": "df9a7926e4244221ed51d1aa0f6a923ae8ebdd912292706c3398f21ba405cbb5",
+    "code_sha256": "dd31c4a157950fee2c2bde5590f510030cb11863c92043bcdca2e87d0380db5f",
+    "inputs": {
+      "mk01_moderate": {
+        "path": "instance/main/Brandimate1993/Moderate/Mk01/Mk01.fjs",
+        "sha256": "836e7a916cf143bd1fdd488373424e2080e8a00ad421c49ae9ec30cacbd89b69"
+      },
+      "mk02_moderate": {
+        "path": "instance/main/Brandimate1993/Moderate/Mk02/Mk02.fjs",
+        "sha256": "4f554a02a866718314047b2c4c5a5bc548e43351506d1583a3169078b4f516f9"
+      },
+      "mk03_moderate": {
+        "path": "instance/main/Brandimate1993/Moderate/Mk03/Mk03.fjs",
+        "sha256": "2bb7a3efb4f6e122f009376318f84889b5384772e5c25c40faa9589609703dff"
+      },
+      "01a_moderate": {
+        "path": "instance/main/DauzerePeresPaulli1994/Moderate/01a/01a.fjs",
+        "sha256": "93c85c3883faa495d6e0d7b296b2e01804badc9cea27049ea61301eddf23fb54"
+      },
+      "02a_moderate": {
+        "path": "instance/main/DauzerePeresPaulli1994/Moderate/02a/02a.fjs",
+        "sha256": "95c805ae1f55f3b30ebc9a5dccac01ef76b6c03445c90c8f17fbe222d2fce703"
+      },
+      "03a_moderate": {
+        "path": "instance/main/DauzerePeresPaulli1994/Moderate/03a/03a.fjs",
+        "sha256": "eb53b2347069048ae9009f594dbd487c373075bf2d408c35aca2d9aff9d398ea"
+      }
+    },
+    "python": "3.11.9",
+    "numpy": "1.23.5"
+  },
+  "protocol": {
+    "schema_version": 1,
+    "study": "hybrid_micro_gwo_qinit_moderate6",
+    "study_date": "2026-11-28",
+    "algorithm": {
+      "partitions": 12,
+      "neighbors": 10,
+      "evaluations": 1000,
+      "crossover": 0.8,
+      "mutation": 0.05,
+      "variant": "micro_gwo",
+      "micro_population_size": 4,
+      "initializer": "hybrid_q_random",
+      "q_init": {
+        "alpha": 0.1,
+        "gamma": 0.95,
+        "epsilon_start": 0.5,
+        "epsilon_end": 0.05,
+        "random_ratio": 0.2,
+        "progress_bins": 4,
+        "weight_bins": 3,
+        "max_resample": 5
+      }
+    },
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "repeat_seed": 0,
+    "checkpoints": [
+      52,
+      250,
+      500,
+      1000
+    ],
+    "hv_reference": [
+      1.1,
+      1.1
+    ],
+    "instances": [
+      {
+        "id": "mk01_moderate",
+        "family": "Brandimate1993",
+        "path": "instance/main/Brandimate1993/Moderate/Mk01/Mk01.fjs"
+      },
+      {
+        "id": "mk02_moderate",
+        "family": "Brandimate1993",
+        "path": "instance/main/Brandimate1993/Moderate/Mk02/Mk02.fjs"
+      },
+      {
+        "id": "mk03_moderate",
+        "family": "Brandimate1993",
+        "path": "instance/main/Brandimate1993/Moderate/Mk03/Mk03.fjs"
+      },
+      {
+        "id": "01a_moderate",
+        "family": "DauzerePeresPaulli1994",
+        "path": "instance/main/DauzerePeresPaulli1994/Moderate/01a/01a.fjs"
+      },
+      {
+        "id": "02a_moderate",
+        "family": "DauzerePeresPaulli1994",
+        "path": "instance/main/DauzerePeresPaulli1994/Moderate/02a/02a.fjs"
+      },
+      {
+        "id": "03a_moderate",
+        "family": "DauzerePeresPaulli1994",
+        "path": "instance/main/DauzerePeresPaulli1994/Moderate/03a/03a.fjs"
+      }
+    ]
+  },
+  "bounds": {
+    "mk01_moderate": {
+      "lower": [
+        36,
+        0
+      ],
+      "upper": [
+        254,
+        5448
+      ],
+      "span": [
+        218,
+        5448
+      ],
+      "constant_objectives": []
+    },
+    "mk02_moderate": {
+      "lower": [
+        24,
+        0
+      ],
+      "upper": [
+        305,
+        7529
+      ],
+      "span": [
+        281,
+        7529
+      ],
+      "constant_objectives": []
+    },
+    "mk03_moderate": {
+      "lower": [
+        204,
+        0
+      ],
+      "upper": [
+        2205,
+        61600
+      ],
+      "span": [
+        2001,
+        61600
+      ],
+      "constant_objectives": []
+    },
+    "01a_moderate": {
+      "lower": [
+        2505,
+        0
+      ],
+      "upper": [
+        11137,
+        188410
+      ],
+      "span": [
+        8632,
+        188410
+      ],
+      "constant_objectives": []
+    },
+    "02a_moderate": {
+      "lower": [
+        2228,
+        0
+      ],
+      "upper": [
+        11137,
+        192165
+      ],
+      "span": [
+        8909,
+        192165
+      ],
+      "constant_objectives": []
+    },
+    "03a_moderate": {
+      "lower": [
+        2228,
+        0
+      ],
+      "upper": [
+        11137,
+        192530
+      ],
+      "span": [
+        8909,
+        192530
+      ],
+      "constant_objectives": []
+    }
+  },
+  "runtime_source": {
+    "digest": "dd31c4a157950fee2c2bde5590f510030cb11863c92043bcdca2e87d0380db5f",
+    "files": {
+      "requirements-lock.txt": "1177e18eb11e91cc383daf644a79cad14a0baaae725ceb9f9d5d10e5588997fa",
+      "scripts/run_baseline_validation.py": "78d8f899d14ee1a8efa43973f2a10287a1a7ef34568647854b4a2a124e09c46e",
+      "scripts/run_fjsp.py": "c6680cdeec04cdb8095f647e815894fa5d26db7508f9f403da22b6a0d89b11ca",
+      "vendor/moead_framework/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "vendor/moead_framework/aggregation/__init__.py": "41d4efb30be36f9eb8b44702bb77859e8fc89ee1c835cf1dd795e728c7bb4081",
+      "vendor/moead_framework/aggregation/functions.py": "1db5051f9764177d35a6073f1c3d818089ac489ff191c5ba774db30e84c5ef02",
+      "vendor/moead_framework/aggregation/tchebycheff.py": "c69c535c71f8acf0402b00467d964bb9d4f787ad2c18996aad1aa266d5c6b418",
+      "vendor/moead_framework/aggregation/weighted_sum.py": "5033ce6d5672b49d3ec0279216a56f1f6ec97e2e23fc716645808e3abc9c0fce",
+      "vendor/moead_framework/algorithm/__init__.py": "277a1309f60582727e40e7fcc140ee21938326a0fa4fb49cb7efe9694ab73cfe",
+      "vendor/moead_framework/algorithm/abstract_moead.py": "e6a304c1bd06841fcb00e4292436c4a7d62a94370858b7f9928edce5733ae573",
+      "vendor/moead_framework/algorithm/fjsp.py": "aab5baa35566a326ecf2b6307f8f54e115107973070a2eece9d5287f46c0792c",
+      "vendor/moead_framework/algorithm/fjsp_qinit.py": "959bf9e3a185d9a2a34db6d31a74c8414483d7337b93969a868e5f78860033e2",
+      "vendor/moead_framework/algorithm/fjsp_variants.py": "f1ec8113f7e1709bc6761afbe17174d166d4631bbbc260d2925785e4223e886b",
+      "vendor/moead_framework/algorithm/moead.py": "26ecb25878144d4d7204ad652474f506f3b0ccafab47b8295cf70fc62a682859",
+      "vendor/moead_framework/algorithm/moead_delta_nr.py": "d17bdb10f0a4fcd32453414aa456e4468cbd677ea49f5bfb0f76513f57a9a35a",
+      "vendor/moead_framework/algorithm/moead_dra.py": "c8132fb06630ce4070a71ff1a2ec86e60bd6202374d56c30a38aec528b3f06eb",
+      "vendor/moead_framework/algorithm/moead_micro_gwo.py": "cea16bbc6b4462e28a3d55444993994d9241bc2cf1c7eb2df7b1297d78778caf",
+      "vendor/moead_framework/algorithm/moead_qinit.py": "dc71d25662cab582ed17d2b7aef739b768c2362e9df2cd1bfe3a61f798e483b9",
+      "vendor/moead_framework/algorithm/moead_sps_random.py": "c6426a34eb2249683fb01126ad985b80c1cadd079ea01ce111926f70510610d7",
+      "vendor/moead_framework/core/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "vendor/moead_framework/core/genetic_operator/__init__.py": "c702a8d0b4605e1cd7b0b1950b0a8cde5e7093bc7b17c89c7a3b6b03e551fa0f",
+      "vendor/moead_framework/core/genetic_operator/abstract_operator.py": "980e1fa1c4993391efb43005d4cac5bb26ef7afa0dc3f846b2b536be9ead368c",
+      "vendor/moead_framework/core/genetic_operator/cross_mut.py": "0c81510acbab370c50978bd98833db1289cf577dba7e596356dcf57aa33a541c",
+      "vendor/moead_framework/core/genetic_operator/crossover.py": "945317d1afb6a7c0d5440e91d49764aaac19edeeedacdd883bfd110a4e1ef3c4",
+      "vendor/moead_framework/core/genetic_operator/fjsp.py": "9029f614af20ef16b6d43a34adaef7bdbfdd4ebb8f58829f4489e2353271b920",
+      "vendor/moead_framework/core/genetic_operator/mutation.py": "dcbb06417abec1bee44654260b9fd0c622588977f31ba060f2899b77e97eaf34",
+      "vendor/moead_framework/core/initializer/__init__.py": "acf9263a7c79b5d3ca964cd31c56ec4542248ae1b83e650b95ffb090e80284b0",
+      "vendor/moead_framework/core/initializer/abstract_initializer.py": "97b1301e996f645c64b8c6fbdf2b43dd452e8f6a1413373c41bfa00bfabd7934",
+      "vendor/moead_framework/core/initializer/fjsp_construction.py": "dee207ea34055f09bdb0e9946eac10e875e5318f6550dafe054e04b16299b490",
+      "vendor/moead_framework/core/initializer/hybrid_initializer.py": "8485226b2ba6d5a2559e20d7d005911f43d884843df496a2eb845b1aecfa16e9",
+      "vendor/moead_framework/core/initializer/qlearning_initializer.py": "2feb8eb7be472b180162ed4a9cbbbd47a71bdc759f87c35637810bc3ba2133c4",
+      "vendor/moead_framework/core/offspring_generator/__init__.py": "0e3497843181df4f43e7cbe2e8ea2d30b286207dea955ccb27529e0d134317c6",
+      "vendor/moead_framework/core/offspring_generator/abstract_mating.py": "757aa36f183eb0327452ef9fef5e244bddce14405f8574dfed592cca852aa118",
+      "vendor/moead_framework/core/offspring_generator/fjsp.py": "d0d242653ab639b804cd2623bcc439b2a7216f75674d5656d9ef801a30bd74c2",
+      "vendor/moead_framework/core/offspring_generator/offspring_generator.py": "dd34003a06b54d9e6857ca1782897dfcbaadf480eb372f44e7f6ca63cffbdeed",
+      "vendor/moead_framework/core/parent_selector/__init__.py": "5451373ec380029023057f19de305e5b3aeda33066a801614d7183796a72866e",
+      "vendor/moead_framework/core/parent_selector/abstract_parent_selector.py": "a5d1140bfd039559981a7ca1c339caa9dad5a3a46aa500c12c0fd17d92ec35d2",
+      "vendor/moead_framework/core/parent_selector/micro_gwo_selector.py": "050fd782802710341e8ae9757eac7a7155b925af4a1418e93fe759e7ef170128",
+      "vendor/moead_framework/core/parent_selector/one_random_and_current_parent_selector.py": "36f20fd885a61a453eaee27286dc8b9dd8c28de9ea39ba9a807411b2467f40c8",
+      "vendor/moead_framework/core/parent_selector/two_random_and_current_parent_selector.py": "47bc63f7a808c2a36f829268bef502839bdb34592a5e01a9271856275cea4e77",
+      "vendor/moead_framework/core/parent_selector/two_random_parent_selector.py": "c38c2689d74298289fc881ced5f4de07fd639934d0993a22ffb94f52f77dc10f",
+      "vendor/moead_framework/core/selector/__init__.py": "d5e29e6aca95125b341c969ba739639dcd4043883988b81d37a779919e081621",
+      "vendor/moead_framework/core/selector/abstract_selector.py": "962c2ae75c510fcf4ead60329d1df842744b25fd731545ef6d46a742b400c03d",
+      "vendor/moead_framework/core/selector/closest_neighbors_selector.py": "81a7f14021bde5944260a8e6e0f6cc4857d7d3bad73cc631683576bcb2e09366",
+      "vendor/moead_framework/core/selector/delta_selector.py": "82935b15cc44c822e1c2a2a7765f1ac77aec2a5f21cb23c427f4db3b6a393d11",
+      "vendor/moead_framework/core/sps_strategy/__init__.py": "4888a8a3bf43092d247e07ca0ec43ae0ac68db7bece4db8e3a27cacac2304b90",
+      "vendor/moead_framework/core/sps_strategy/abstract_sps.py": "87f07144d90b7bd4f2e370f4519a810d14926e9505e955f0ed700e9f1da331ad",
+      "vendor/moead_framework/core/sps_strategy/sps_all.py": "6b867c210752aa58f24331e3e0d66392a9969c944254efdb50631151a81a7754",
+      "vendor/moead_framework/core/sps_strategy/sps_dra.py": "6900d8083474c1213c811eba6c23a269f2694f5ff8449457a86e3c6c7258017a",
+      "vendor/moead_framework/core/sps_strategy/sps_random_and_boundaries.py": "060418737ba9dbd5aabfb3a1421395da5c445cc84c83fa1c7cfc34779611accb",
+      "vendor/moead_framework/core/termination_criteria/__init__.py": "e912dffb592b1db3669ccb71a0b79328bd6af2b70cd27bf7138a5a0c27b412b2",
+      "vendor/moead_framework/core/termination_criteria/abstract_termination_criteria.py": "ab995c4e3177e837e5dea0a77232c8b18e891212cf850971585e248bbfc2e877",
+      "vendor/moead_framework/core/termination_criteria/max_evaluation.py": "92cb7011506c5786b1d021bc78fdfd8063508c08d8822d5ee50f6308485d9fe3",
+      "vendor/moead_framework/problem/__init__.py": "8fe2bc758258b75d4b73a1de4b924bd3bf51e15285bf8d1f16092d34e6c2480e",
+      "vendor/moead_framework/problem/fjsp/__init__.py": "918fd0619126e536020198299997f9c77220f2ca0a6e88233062dee555ba919e",
+      "vendor/moead_framework/problem/fjsp/decoder.py": "dcd3b7e9a7808099bcd0a357063273e869dd51d244907fee937129f8900b1f94",
+      "vendor/moead_framework/problem/fjsp/encoding.py": "3f3f9996ca3d380caf91966f7a837f483cd4b5f65ad23f5341fe7528709f173e",
+      "vendor/moead_framework/problem/fjsp/instance.py": "07b09c8ad8ffb2704a9f2e61e48d3274f8c2ec91b88e549412034e94b12e5e60",
+      "vendor/moead_framework/problem/fjsp/problem.py": "1fa1a05baa5570801e9426cd7992e7a8d99b5cfbd14c4d0999f13f68468f1233",
+      "vendor/moead_framework/problem/problem.py": "3501b1d767ffe3176f12e568cb8e2ce7b5523dfbad15e8101f123e6bfefc2faf",
+      "vendor/moead_framework/solution/__init__.py": "7675010c81ddd68ce430ee2bcce42ebda0c7a513c7513f53680d955678f6f528",
+      "vendor/moead_framework/solution/base.py": "31dfdc9185be4d55d48198962435867c15deb2038bbb78772a4301681e24cb4f",
+      "vendor/moead_framework/solution/one_dimension_solution.py": "e8f0caf8c58afef7580e039ed295adc2c593708aa7e650a5c9d1be90161b9f13",
+      "vendor/moead_framework/tool/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "vendor/moead_framework/tool/fjsp_experiments.py": "9931a813039c579cd7e8b3eda6a2673cf9728b436027ef4e52885bfa80b53998",
+      "vendor/moead_framework/tool/mop.py": "194ca54167a39fcca25e1a1324b6149ed3b040d4a4675d437063a1e399e00a12",
+      "vendor/moead_framework/tool/result.py": "fe8f4bf3c631be6261a93f144a385f75f71a7b411e0e4f36a81def93c2918cf9"
+    }
+  },
+  "environment": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "logical_cpus": 20
+  }
+}

@@ -25,3 +25,5 @@ dist/
 /test_save_population_full.txt
 
 .vscode
+# Generated experiment artifacts (docs/archive/setup remains tracked).
+paper/

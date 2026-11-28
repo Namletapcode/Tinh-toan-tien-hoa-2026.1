@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "study": "qinit_pilot6_baseline",
+  "study_date": "2026-11-25",
+  "algorithm": {
+    "partitions": 12,
+    "neighbors": 10,
+    "evaluations": 1000,
+    "crossover": 0.8,
+    "mutation": 0.05
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "repeat_seed": 0,
+  "checkpoints": [
+    13,
+    250,
+    500,
+    1000
+  ],
+  "hv_reference": [
+    1.1,
+    1.1
+  ],
+  "instances": [
+    {
+      "id": "mk02_loose",
+      "family": "Brandimate1993",
+      "path": "instance/main/Brandimate1993/Loose/Mk02/Mk02.fjs"
+    },
+    {
+      "id": "mk06_moderate",
+      "family": "Brandimate1993",
+      "path": "instance/main/Brandimate1993/Moderate/Mk06/Mk06.fjs"
+    },
+    {
+      "id": "mk09_tight",
+      "family": "Brandimate1993",
+      "path": "instance/main/Brandimate1993/Tight/Mk09/Mk09.fjs"
+    },
+    {
+      "id": "03a_loose",
+      "family": "DauzerePeresPaulli1994",
+      "path": "instance/main/DauzerePeresPaulli1994/Loose/03a/03a.fjs"
+    },
+    {
+      "id": "08a_moderate",
+      "family": "DauzerePeresPaulli1994",
+      "path": "instance/main/DauzerePeresPaulli1994/Moderate/08a/08a.fjs"
+    },
+    {
+      "id": "12a_tight",
+      "family": "DauzerePeresPaulli1994",
+      "path": "instance/main/DauzerePeresPaulli1994/Tight/12a/12a.fjs"
+    }
+  ]
+}

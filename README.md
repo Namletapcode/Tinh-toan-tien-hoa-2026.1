@@ -16,6 +16,7 @@ Dữ liệu: **[BENCHMARKS.md](docs/BENCHMARKS.md)**.
 
 Đánh giá mục tiêu: **[EVALUATE.md](docs/EVALUATE.md)**.
 
+Khởi tạo bằng Q-learning: **[QINIT.md](docs/QINIT.md)**.
 ## 1. Cài đặt
 
 Mở PowerShell tại thư mục gốc project. Cần tối thiểu Python 3.11 để dùng bộ dependency hiện tại.
@@ -75,8 +76,8 @@ chi tiết nằm trong [FJSP.md](docs/FJSP.md).
 
 ```text
 vendor/moead_framework/
-  algorithm/       # Vòng lặp MOEA/D và hàm lắp cấu hình FJSP
-  core/            # Chọn cha mẹ, toán tử, sinh con, chọn bài toán con, dừng
+  algorithm/       # Vòng lặp MOEA/D (Moead, MoeadQInit, MoeadMicroGWO) và hàm lắp cấu hình FJSP
+  core/            # Chọn cha mẹ, toán tử, sinh con, khởi tạo, chọn bài toán con, dừng
   problem/fjsp/    # Instance, OS/MS, decoder, đánh giá và kiểm tra lịch
   aggregation/     # Hàm phân rã
   solution/        # Đối tượng nghiệm
@@ -93,3 +94,38 @@ Bảng điểm mở rộng, giao diện component và quy tắc NFE/archive nằ
 [protocol thực nghiệm](docs/EXPERIMENTS.md).
 
 `results/` tạm thời đang được đặt trong gitignore.
+
+## 5. Micropopulation và Grey Wolf
+
+Ba chế độ `--variant`: `baseline` (mặc định), `micro_random` (đối chứng cùng số cá thể), `micro_gwo` (chọn cha mẹ theo Grey Wolf). Cách chạy, sơ đồ lớp và quy tắc nằm trong [MICRO_GWO](docs/MICRO_GWO.md).
+
+```powershell
+./.venv/Scripts/python.exe scripts/run_fjsp.py --variant micro_gwo --micro-population-size 4
+```
+
+### Kết hợp micropopulation với khởi tạo Q-learning
+
+`--variant` và `--initializer` (`baseline`, `qlearning`, `hybrid_q_random`) độc lập nhau, nên chạy được cả 9 tổ hợp:
+
+| `--variant` | `--initializer` | Thuật toán |
+|---|---|---|
+| `baseline` | `baseline` | `Moead` |
+| `baseline` | `qlearning` / `hybrid_q_random` | `MoeadQInit` |
+| `micro_gwo` / `micro_random` | `baseline` | `MoeadMicroGWO` (khởi tạo ngẫu nhiên) |
+| `micro_gwo` / `micro_random` | `qlearning` / `hybrid_q_random` | `MoeadMicroGWO` (khởi tạo Q-learning) |
+
+```powershell
+./.venv/Scripts/python.exe scripts/run_fjsp.py --variant micro_gwo --initializer hybrid_q_random --q-random-ratio 0.2
+```
+
+Với micro, bộ khởi tạo tạo `số_nhóm × micro_population_size` cá thể (mặc định 13 × 4 = 52). Weight của nhóm `i` được lặp cho mọi cá thể trong nhóm đó. Hybrid giữ `random_ratio` cá thể ngẫu nhiên trên tổng 52. Tham số `--q-*` chỉ dùng khi `--initializer` khác `baseline`. `--evaluations` phải từ 52 trở lên.
+
+Khi chạy study, `checkpoints[0]` phải bằng tổng số cá thể ban đầu: `13` cho `baseline`, `52` cho micro, kể cả khi có Q-learning. Config mẫu: [hybrid_micro_gwo_qinit.json](scripts/configs/hybrid_micro_gwo_qinit.json), chạy bằng:
+
+```powershell
+./.venv/Scripts/python.exe scripts/run_baseline_validation.py --config scripts/configs/micro_gwo_hybrid_pilot6.json --output-dir results/pilot_micro_gwo_hybrid
+```
+
+Study micro có checkpoint đầu 52 nên so với baseline (13) bằng `scripts/compare_studies.py`, không dùng `scripts/compare_initializers.py`. Khi sửa mã trong `vendor/`, các thư mục kết quả cũ không còn resume hoặc verify được vì fingerprint code đã đổi.
+
+Baseline cố định của sáu instance `Moderate` nằm trong [benchmark dùng chung](benchmarks/reference_baseline/moderate_six/README.md). Các file JSON gốc trong `runs/` phục vụ đối chiếu IGD+ và Coverage về sau.
